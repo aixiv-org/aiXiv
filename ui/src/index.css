@@ -1,0 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased;
+  }
+  
+  /* Import premium font */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap');
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white;
+  }
+}
+
+/* Custom animations */
+@keyframes ink-stroke {
+  0% { stroke-dashoffset: 100; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.ink-stroke {
+  stroke-dasharray: 100;
+  animation: ink-stroke 0.6s ease-out forwards;
+}
+
+/* Particle animation for hero */
+.particle {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+  50% { transform: translateY(-20px) rotate(180deg); opacity: 0.7; }
+}
+
+/* Marquee animation */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.marquee {
+  animation: marquee 20s linear infinite;
+}
+
+/* Count up animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.count-up {
+  animation: countUp 0.6s ease-out forwards;
+}
+
+/* Premium Logo Styles - Modern & Elegant */
+.logo-luxury {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-weight: 100;
+  letter-spacing: -0.015em;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Enhanced AI text with subtle glow */
+.logo-ai-enhanced {
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 25%, #a855f7 50%, #3b82f6 75%, #06b6d4 100%);
+  background-size: 300% 300%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: premiumGradientFlow 8s ease-in-out infinite;
+  font-weight: 200;
+  position: relative;
+  text-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
+}
+
+/* Subtle blur shadow for depth */
+.logo-ai-enhanced::before {
+  content: 'ai';
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 25%, #a855f7 50%, #3b82f6 75%, #06b6d4 100%);
+  background-size: 300% 300%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: blur(12px);
+  opacity: 0.4;
+  z-index: -1;
+}
+
+/* Xiv text with refined typography */
+.logo-xiv-refined {
+  font-weight: 300;
+  color: #111827;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  margin-left: 1px;
+}
+
+.dark .logo-xiv-refined {
+  color: #f8fafc;
+}
+
+/* Hover effects */
+.logo-luxury:hover .logo-ai-enhanced {
+  animation-duration: 2s;
+  text-shadow: 0 0 40px rgba(124, 58, 237, 0.4);
+}
+
+.logo-luxury:hover .logo-xiv-refined {
+  letter-spacing: 0.02em;
+  color: #374151;
+}
+
+.dark .logo-luxury:hover .logo-xiv-refined {
+  color: #e5e7eb;
+}
+
+/* Premium gradient animation */
+@keyframes premiumGradientFlow {
+  0%, 100% { 
+    background-position: 0% 50%; 
+    background-size: 300% 300%;
+  }
+  25% { 
+    background-position: 100% 25%; 
+    background-size: 350% 350%;
+  }
+  50% { 
+    background-position: 200% 50%; 
+    background-size: 400% 400%;
+  }
+  75% { 
+    background-position: 300% 75%; 
+    background-size: 350% 350%;
+  }
+}
