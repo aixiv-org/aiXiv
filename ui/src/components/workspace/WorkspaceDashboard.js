@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Clock, Users, Bot, FileText, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react';
+import { TrendingUp, Bot, FileText, MessageSquare } from 'lucide-react';
 
 const WorkspaceDashboard = () => {
   const kpis = [

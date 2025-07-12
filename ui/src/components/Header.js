@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Upload, Bell, Moon, Sun, Menu, User } from 'lucide-react';
+import { Search, Upload, Bell, Moon, Sun, User } from 'lucide-react';
 import SearchDropdown from './SearchDropdown';
 
 const Header = ({ darkMode, setDarkMode }) => {

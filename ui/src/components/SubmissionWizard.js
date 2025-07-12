@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Upload, Bot, Wand2, Eye, Send, Copy, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload, Bot, Wand2, Send, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 
 const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
   const [formData, setFormData] = useState({

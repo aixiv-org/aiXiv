@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Users, FileText, Bot, ExternalLink, ChevronRight, Star } from 'lucide-react';
+import { TrendingUp, FileText, Bot, ChevronRight } from 'lucide-react';
 import ParticleBackground from '../components/ParticleBackground';
 
 const Home = () => {
@@ -46,7 +46,6 @@ const Home = () => {
     
     return () => clearInterval(interval);
   }, []);
-
   // Rotate tips
   useEffect(() => {
     const interval = setInterval(() => {
@@ -54,7 +53,7 @@ const Home = () => {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [tips.length]);
 
   const trendingPapers = [
     {
@@ -310,23 +309,22 @@ const Home = () => {
                 <li><Link to="/api" className="hover:text-white">API</Link></li>
                 <li><Link to="/about" className="hover:text-white">About</Link></li>
               </ul>
-            </div>
-            <div>
+            </div>            <div>
               <h4 className="text-lg font-semibold mb-4">Community</h4>
               <ul className="space-y-2 text-gray-300">
-                <li><a href="#" className="hover:text-white">Forums</a></li>
-                <li><a href="#" className="hover:text-white">Discord</a></li>
-                <li><a href="#" className="hover:text-white">GitHub</a></li>
-                <li><a href="#" className="hover:text-white">Blog</a></li>
+                <li><button className="hover:text-white text-left">Forums</button></li>
+                <li><button className="hover:text-white text-left">Discord</button></li>
+                <li><button className="hover:text-white text-left">GitHub</button></li>
+                <li><button className="hover:text-white text-left">Blog</button></li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-gray-300">
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-                <li><a href="#" className="hover:text-white">Status</a></li>
-                <li><a href="#" className="hover:text-white">Privacy</a></li>
+                <li><button className="hover:text-white text-left">Help Center</button></li>
+                <li><button className="hover:text-white text-left">Contact</button></li>
+                <li><button className="hover:text-white text-left">Status</button></li>
+                <li><button className="hover:text-white text-left">Privacy</button></li>
               </ul>
             </div>
             <div>

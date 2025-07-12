@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Upload, ChevronRight, ChevronLeft, Check, AlertCircle, Bot, Lightbulb } from 'lucide-react';
+import { FileText, ChevronRight, Check, Lightbulb } from 'lucide-react';
 import SubmissionWizard from '../components/SubmissionWizard';
 
 const Submit = () => {

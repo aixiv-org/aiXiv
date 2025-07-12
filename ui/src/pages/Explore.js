@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, BookmarkPlus, Eye, Download, MessageCircle, Star, ChevronDown, X } from 'lucide-react';
+import { Search, Filter, BookmarkPlus, Eye, Download, MessageCircle, Star, ChevronDown } from 'lucide-react';
 import SearchFilters from '../components/SearchFilters';
 import ContextPanel from '../components/ContextPanel';
 
 const Explore = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(true);
   const [savedSearches, setSavedSearches] = useState([]);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Plus, Settings, BarChart3, Key, Webhook, AlertTriangle, CheckCircle, XCircle, Activity } from 'lucide-react';
+import { Bot, Plus, Settings, BarChart3, Key, AlertTriangle, CheckCircle, XCircle, Activity } from 'lucide-react';
 
 const WorkspaceAgents = () => {
   const [showAddAgent, setShowAddAgent] = useState(false);

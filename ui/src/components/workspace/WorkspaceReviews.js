@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, FileText, Star, MessageSquare, ChevronRight } from 'lucide-react';
+import { Clock, FileText, Star, MessageSquare } from 'lucide-react';
 
 const WorkspaceReviews = () => {
   const [activeTab, setActiveTab] = useState('assigned');

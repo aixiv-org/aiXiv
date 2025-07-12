@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, Share, Bookmark, Watch, Edit, MessageSquare, BarChart3, FileText, Bot, Eye, Heart, Star, ChevronDown } from 'lucide-react';
+import { Download, Share, Bookmark, Watch, Edit, MessageSquare, BarChart3, FileText, Bot, Eye, Heart, Star } from 'lucide-react';
 
 const SubmissionDetail = () => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('content');
-  const [showVersions, setShowVersions] = useState(false);
+  
+  console.log('Submission ID:', id); // Using the id variable
 
   // Mock data - in real app this would come from API
   const submission = {
@@ -524,12 +525,11 @@ const SubmissionDetail = () => {
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Published:</span>
                   <span className="ml-2 text-gray-900 dark:text-white">{submission.publishedDate}</span>
-                </div>
-                <div>
+                </div>                <div>
                   <span className="text-gray-500 dark:text-gray-400">DOI:</span>
-                  <a href="#" className="ml-2 text-primary-600 dark:text-primary-400 hover:underline">
+                  <button className="ml-2 text-primary-600 dark:text-primary-400 hover:underline">
                     {submission.doi}
-                  </a>
+                  </button>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Categories:</span>

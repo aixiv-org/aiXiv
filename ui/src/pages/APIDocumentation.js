@@ -201,24 +201,23 @@ const APIDocumentation = () => {
               <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                   Quick Links
-                </h4>
-                <div className="space-y-2">
-                  <a href="#" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                </h4>                <div className="space-y-2">
+                  <button className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                     <BookOpen className="h-4 w-4 mr-2" />
                     Getting Started
-                  </a>
-                  <a href="#" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                  </button>
+                  <button className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                     <Shield className="h-4 w-4 mr-2" />
                     Authentication
-                  </a>
-                  <a href="#" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                  </button>
+                  <button className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                     <Zap className="h-4 w-4 mr-2" />
                     Rate Limits
-                  </a>
-                  <a href="#" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                  </button>
+                  <button className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                     <Globe className="h-4 w-4 mr-2" />
                     SDKs
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>

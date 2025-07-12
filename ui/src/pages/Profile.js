@@ -7,7 +7,6 @@ import {
   BookOpen, 
   Award, 
   Star, 
-  Eye, 
   Download,
   Edit,
   Settings,
@@ -27,7 +26,7 @@ import {
 const Profile = () => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('papers');
-  const [isOwnProfile, setIsOwnProfile] = useState(true); // Mock: assume viewing own profile
+  const [isOwnProfile] = useState(true); // Mock: assume viewing own profile
 
   // Mock profile data
   const profileData = {
