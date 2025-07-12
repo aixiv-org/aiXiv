@@ -2,7 +2,7 @@
   "name": "aixiv-ui",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://aixiv-org.github.io/",
+  "homepage": "https://aixiv-org.github.io/aiXiv",
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-dropdown-menu": "^2.0.6",
