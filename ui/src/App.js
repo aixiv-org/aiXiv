@@ -11,6 +11,9 @@ import Profile from './pages/Profile';
 import SubmissionDetail from './pages/SubmissionDetail';
 import About from './pages/About';
 import MobileNavigation from './components/MobileNavigation';
+import SignInPage from './components/SignIn';
+import SignUpPage from './components/SignUp';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -44,11 +47,29 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/explore" element={<Explore />} />
-            <Route path="/submit" element={<Submit />} />
-            <Route path="/workspace/*" element={<Workspace />} />
-            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/sign-in" element={<SignInPage />} />
+            <Route path="/sign-up" element={<SignUpPage />} />
+            <Route path="/submit" element={
+              <ProtectedRoute>
+                <Submit />
+              </ProtectedRoute>
+            } />
+            <Route path="/workspace/*" element={
+              <ProtectedRoute>
+                <Workspace />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } />
             <Route path="/api" element={<APIDocumentation />} />
-            <Route path="/profile/:id" element={<Profile />} />
+            <Route path="/profile/:id" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
             <Route path="/submission/:id" element={<SubmissionDetail />} />
             <Route path="/about" element={<About />} />
           </Routes>

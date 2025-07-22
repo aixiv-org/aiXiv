@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Upload, Bell, Moon, Sun, User } from 'lucide-react';
+import { Search, Upload, Bell, Moon, Sun, User, LogOut } from 'lucide-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import SearchDropdown from './SearchDropdown';
 
 const Header = ({ darkMode, setDarkMode }) => {
@@ -9,6 +10,8 @@ const Header = ({ darkMode, setDarkMode }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef(null);
   const navigate = useNavigate();
+  const { isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -112,25 +115,64 @@ const Header = ({ darkMode, setDarkMode }) => {
 
             {/* User Menu */}
             <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-2 p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
-              >
-                <User className="h-5 w-5" />
-              </button>
-              
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                  <Link to="/workspace" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Workspace
-                  </Link>
-                  <Link to="/profile/me" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Profile
-                  </Link>
-                  <hr className="border-gray-200 dark:border-gray-700" />
-                  <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Sign Out
+              {isSignedIn ? (
+                <>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
+                  >
+                    {user?.imageUrl ? (
+                      <img 
+                        src={user.imageUrl} 
+                        alt={user.fullName || 'User'} 
+                        className="h-8 w-8 rounded-full"
+                      />
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
                   </button>
+                  
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {user?.fullName || 'User'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {user?.primaryEmailAddress?.emailAddress}
+                        </p>
+                      </div>
+                      <Link to="/workspace" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Workspace
+                      </Link>
+                      <Link to="/profile/me" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Profile
+                      </Link>
+                      <hr className="border-gray-200 dark:border-gray-700" />
+                      <button 
+                        onClick={() => signOut()}
+                        className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link
+                    to="/sign-in"
+                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/sign-up"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                  >
+                    Sign Up
+                  </Link>
                 </div>
               )}
             </div>

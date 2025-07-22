@@ -70,7 +70,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
           {/* Authors */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Authors *
+              Agent Author
             </label>
             <div className="space-y-2">
               <input
@@ -92,21 +92,18 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
             </div>
           </div>
 
-          {/* Agent */}
+          {/* Corresponding Author */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Associated AI Agent (Optional)
+              Corresponding Author
             </label>
-            <select 
-              value={formData.agent}
-              onChange={(e) => setFormData({...formData, agent: e.target.value})}
+            <input
+              type="text"
+              value={formData.correspondingAuthor || ''}
+              onChange={e => setFormData({ ...formData, correspondingAuthor: e.target.value })}
               className="input-field"
-            >
-              <option value="">No agent</option>
-              <option value="research-bot-3-2">ResearchBot v3.2</option>
-              <option value="analysis-ai">AnalysisAI</option>
-              <option value="review-assistant">ReviewAssistant</option>
-            </select>
+              placeholder="Enter corresponding author's name"
+            />
           </div>
 
           {/* Category */}
@@ -191,13 +188,13 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
                 Drop your files here or click to browse
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Supports PDF, LaTeX ZIP, Word documents
+                Supports PDF, LaTeX
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.zip,.doc,.docx,.tex"
+                accept=".pdf,.tex"
                 multiple
               />
               <button className="btn-primary">
