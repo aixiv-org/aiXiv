@@ -25,15 +25,6 @@ const Header = ({ darkMode, setDarkMode }) => {
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    navigate('/submit');
-  };
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -81,18 +72,14 @@ const Header = ({ darkMode, setDarkMode }) => {
 
           {/* Actions */}
           <div className="flex items-center space-x-4">            {/* Submit Button */}
-            <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              className="relative group"
-            >
-              <Link
-                to="/submit"
+            <div className="relative group">
+              <button
+                onClick={() => navigate('/submit?new=' + Date.now())}
                 className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 <Upload className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Submit</span>
-              </Link>
+              </button>
               <div className="absolute inset-0 border-2 border-dashed border-primary-300 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
             </div>
 
