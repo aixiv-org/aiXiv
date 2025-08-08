@@ -1,5 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import API_ENDPOINTS from '../config/api';
 import { 
   User, 
   MapPin, 
@@ -21,37 +23,51 @@ import {
   MessageSquare,
   Heart,
   Share2,
-  Upload,
   Camera
 } from 'lucide-react';
 
 const Profile = () => {
   const { id } = useParams();
+  const { getToken, userId: clerkUserId } = useAuth();
   const [activeTab, setActiveTab] = useState('papers');
-  const [isOwnProfile] = useState(true); // Mock: assume viewing own profile
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [profileData, setProfileData] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Mock profile data
-  const profileData = {
-    id: id || 'current-user',
-    name: 'Dr. Sarah Chen',
-    title: 'Senior Research Scientist',
-    affiliation: 'MIT Computer Science & Artificial Intelligence Laboratory',
-    location: 'Cambridge, MA',
-    joinDate: 'March 2021',
-    avatar: '/api/placeholder/150/150',
-    bio: 'Researcher in machine learning, computer vision, and AI systems. Passionate about developing ethical AI solutions for real-world problems.',
-    email: 'sarah.chen@mit.edu',
-    website: 'https://sarahchen.ai',
+  // Get the actual user ID - handle 'me' as special case for current user
+  // Use 'default-user' as fallback if no user ID is available
+  let profileUserId;
+  if (id === 'me' || !id) {
+    profileUserId = clerkUserId || 'default-user';
+  } else {
+    profileUserId = id;
+  }
+  
+  // Check if viewing own profile
+  // If no ID in URL or 'me', it's the current user's profile
+  // Or if the profile ID matches the current user ID
+  const isOwnProfile = !id || id === 'me' || (profileUserId === clerkUserId) || (!clerkUserId && profileUserId === 'default-user');
+  
+  // Default profile structure with stats and badges
+  const defaultProfileData = useMemo(() => ({
+    id: profileUserId,
+    name: 'New User',
+    title: '',
+    affiliation: '',
+    location: '',
+    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    avatar: null,
+    bio: '',
+    email: '',
+    website: '',
     socialLinks: {
-      github: 'https://github.com/sarahchen',
-      twitter: 'https://twitter.com/sarahchen_ai',
-      linkedin: 'https://linkedin.com/in/sarahchen'
+      github: '',
+      twitter: '',
+      linkedin: ''
     },
     stats: {
       papers: 47,
@@ -66,7 +82,62 @@ const Profile = () => {
       { name: 'Rising Star', icon: Star, color: 'bg-purple-100 text-purple-800' },
       { name: 'Community Leader', icon: Users, color: 'bg-blue-100 text-blue-800' }
     ]
-  };
+  }), [profileUserId]);
+
+  // Fetch profile data on component mount or when user ID changes
+  const fetchProfileData = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_GET(profileUserId), {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map backend data to frontend format
+        setProfileData({
+          ...defaultProfileData,
+          id: data.user_id,
+          name: data.name || defaultProfileData.name,
+          title: data.title || '',
+          affiliation: data.affiliation || '',
+          location: data.location || '',
+          avatar: data.avatar_url || null,
+          bio: data.bio || '',
+          email: data.email || '',
+          website: data.website || '',
+          socialLinks: {
+            github: data.github_url || '',
+            twitter: data.twitter_url || '',
+            linkedin: data.linkedin_url || ''
+          }
+        });
+      } else if (response.status === 404) {
+        // Profile not found, use default data
+        setProfileData(defaultProfileData);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setProfileData(defaultProfileData);
+    }
+  }, [getToken, profileUserId, defaultProfileData]);
+
+  useEffect(() => {
+    if (profileUserId) {
+      fetchProfileData();
+    }
+  }, [profileUserId, fetchProfileData]);
+
+  // Show loading state while fetching profile
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-500">Loading profile...</div>
+      </div>
+    );
+  }
 
   // Initialize form data when entering edit mode
   const handleEditClick = () => {
@@ -129,12 +200,12 @@ const Profile = () => {
     formData.append('user_id', profileData.id);
 
     try {
-      const response = await fetch('/api/profile/avatar', {
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_AVATAR, {
         method: 'POST',
-        // Add authorization header if needed
-        // headers: {
-        //   'Authorization': `Bearer ${token}`
-        // },
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined
+        },
         body: formData
       });
 
@@ -165,10 +236,19 @@ const Profile = () => {
         }
       }
 
-      // Prepare profile data
+      // Prepare profile data - filter out empty URL strings
       const profilePayload = {
         user_id: profileData.id,
-        ...formData
+        name: formData.name,
+        title: formData.title || null,
+        affiliation: formData.affiliation || null,
+        location: formData.location || null,
+        bio: formData.bio || null,
+        email: formData.email || null,
+        website: formData.website || null,
+        github: formData.github || null,
+        twitter: formData.twitter || null,
+        linkedin: formData.linkedin || null
       };
       
       // Add avatar URL if successfully uploaded
@@ -177,12 +257,12 @@ const Profile = () => {
       }
 
       // Call the backend API to save profile
-      const response = await fetch('/api/profile/update', {
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_UPDATE, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // Add authorization header if needed
-          // 'Authorization': `Bearer ${token}`
+          'Authorization': token ? `Bearer ${token}` : undefined
         },
         body: JSON.stringify(profilePayload)
       });
@@ -194,14 +274,29 @@ const Profile = () => {
       const result = await response.json();
       console.log('Profile updated successfully:', result);
       
+      // Update local profile data with the saved data
+      setProfileData({
+        ...profileData,
+        name: result.name || profileData.name,
+        title: result.title || '',
+        affiliation: result.affiliation || '',
+        location: result.location || '',
+        avatar: result.avatar_url || profileData.avatar,
+        bio: result.bio || '',
+        email: result.email || '',
+        website: result.website || '',
+        socialLinks: {
+          github: result.github_url || '',
+          twitter: result.twitter_url || '',
+          linkedin: result.linkedin_url || ''
+        }
+      });
+      
       // Exit edit mode after successful save
       setIsEditMode(false);
       setFormData(null);
       setAvatarPreview(null);
       setAvatarFile(null);
-      
-      // Optionally refresh the page or update local state
-      // window.location.reload();
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Failed to update profile. Please try again.');
@@ -381,12 +476,20 @@ const Profile = () => {
                           alt="Avatar preview"
                           className="w-full h-full object-cover"
                         />
-                      ) : (
+                      ) : profileData?.avatar ? (
                         <img
-                          src={profileData.avatar}
+                          src={`http://localhost:8000${profileData.avatar}`}
                           alt={profileData.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full bg-gray-200 flex items-center justify-center"><svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                          }}
                         />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <User className="w-16 h-16 text-gray-400" />
+                        </div>
                       )}
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
                         <div className="text-white text-center">
@@ -409,11 +512,21 @@ const Profile = () => {
                   </>
                 ) : (
                   <>
-                    <img
-                      src={profileData.avatar}
-                      alt={profileData.name}
-                      className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
-                    />
+                    {profileData?.avatar ? (
+                      <img
+                        src={`http://localhost:8000${profileData.avatar}`}
+                        alt={profileData.name}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-32 h-32 rounded-full bg-gray-200 border-4 border-white dark:border-gray-700 shadow-lg flex items-center justify-center"><svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-white dark:border-gray-700 shadow-lg flex items-center justify-center">
+                        <User className="w-12 h-12 text-gray-400" />
+                      </div>
+                    )}
                     {isOwnProfile && (
                       <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
                         <Edit className="w-4 h-4" />
