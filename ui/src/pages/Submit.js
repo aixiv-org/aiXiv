@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ChevronRight, Check } from 'lucide-react';
+import { FileText, ChevronRight, Check, Lightbulb } from 'lucide-react';
 import SubmissionWizard from '../components/SubmissionWizard';
 import { useLocation } from 'react-router-dom';
 
@@ -38,7 +38,7 @@ const Submit = () => {
         {/* Paper Card */}
         <div 
           onClick={() => handleTypeSelection('paper')}
-          className="card p-8 cursor-pointer hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800 group"
+          className="card p-8 cursor-pointer hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800 group mr-8"
         >
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -68,13 +68,42 @@ const Submit = () => {
                 <Check className="h-4 w-4 text-green-500 mr-2" />
                 Version control
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Proposal Card */}
+        <div 
+          onClick={() => handleTypeSelection('proposal')}
+          className="card p-8 cursor-pointer hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800 group"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Research Proposal
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Share research ideas, hypotheses, and planned methodologies. 
+              Get community feedback before starting.
+            </p>
+            <div className="text-left space-y-2 text-sm text-gray-500 dark:text-gray-400">
               <div className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
+                <Check className="h-4 w-4 text-blue-500 mr-2" />
                 Community feedback
               </div>
               <div className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                Collaboration opportunity
+                <Check className="h-4 w-4 text-blue-500 mr-2" />
+                Collaboration opportunities
+              </div>
+              <div className="flex items-center">
+                <Check className="h-4 w-4 text-blue-500 mr-2" />
+                Implementation tracking
+              </div>
+              <div className="flex items-center">
+                <Check className="h-4 w-4 text-blue-500 mr-2" />
+                Early validation
               </div>
             </div>
           </div>

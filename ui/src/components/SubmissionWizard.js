@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Upload, Send, CheckCircle } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 
@@ -51,6 +51,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
     agent_authors: [],
     corresponding_author: '',
     category: [],
+    abstract: '',
     keywords: [],
     license: 'CC-BY-4.0',
   });
@@ -65,73 +66,90 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [s3Url, setS3Url] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [validationError, setValidationError] = useState('');
   
   const fileInputRef = useRef(null);
 
-  // Add state
-  const [extractedAbstract, setExtractedAbstract] = useState('');
-  const [isExtractingAbstract, setIsExtractingAbstract] = useState(false);
-
-  // Extract abstract whenever s3Url changes and is set
-  useEffect(() => {
-    if (s3Url) {
-      setIsExtractingAbstract(true);
-      setExtractedAbstract('');
-      fetch('http://localhost:8000/api/extract-abstract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ s3_url: s3Url }),
-      })
-        .then(res => res.ok ? res.json() : Promise.reject())
-        .then(data => setExtractedAbstract(data.abstract))
-        .catch(() => setExtractedAbstract('Could not extract abstract from the uploaded file.'))
-        .finally(() => setIsExtractingAbstract(false));
-    } else {
-      setExtractedAbstract('');
-      setIsExtractingAbstract(false);
-    }
-  }, [s3Url]);
-
   // Remove all references to 'proposal' or 'compose proposal' in the steps, UI, and logic
-  const steps = [
+  const steps = type === 'proposal' ? [
     'Choose Type',
-    'Metadata',
+    'Proposal Metadata',
+    'Upload Proposal',
+    'Preview & Submit'
+  ] : [
+    'Choose Type',
+    'Paper Metadata',
     'Upload Paper',
     'Preview & Submit'
   ];
 
   const handleNext = () => {
+    if (currentStep === 1) { // Metadata step
+      const requiredFields = {
+        'Title': formData.title,
+        'Agent Authors': formData.agent_authors,
+        'Corresponding Author': formData.corresponding_author,
+        'Abstract': formData.abstract,
+        'Keywords': formData.keywords
+      };
+
+      const missingFields = Object.entries(requiredFields)
+        .filter(([_, value]) => {
+          if (Array.isArray(value)) {
+            return value.length === 0;
+          }
+          return !value.trim();
+        })
+        .map(([key]) => key);
+
+      if (missingFields.length > 0) {
+        setValidationError(`Please fill out all required fields: ${missingFields.join(', ')}.`);
+        return;
+      }
+    }
+    setValidationError(''); // Clear error if validation passes
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
 
   const handleSubmit = async () => {
-    // Prepare the payload
-    const payload = {
-      ...formData,
-      abstract: extractedAbstract, // Use the extracted abstract
-      uploaded_by: user?.id,
-      s3_url: s3Url,
-    };
-    console.log('Submitting:', payload);
-    
     try {
-      const response = await fetch('http://localhost:8000/api/submit', {
+      const payload = {
+        ...formData,
+        s3_url: s3Url,
+        abstract: formData.abstract, // Use manually entered abstract
+        uploaded_by: user?.id,
+        submission_type: type
+      };
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      
+
       if (response.ok) {
-        const result = await response.json();
-        alert(`Submission successful! ID: ${result.submission_id}`);
+        await response.json(); // Just consume the response, don't store it
+        alert(`${type === 'paper' ? 'Paper' : 'Proposal'} submitted successfully!`);
+        // Reset form or redirect
+        setCurrentStep(1);
+        setFormData({
+          title: '',
+          agent_authors: [],
+          corresponding_author: '',
+          keywords: [],
+          category: [],
+          abstract: ''
+        });
+        setSelectedFile(null);
+        setS3Url('');
       } else {
-        alert('Submission failed. Please try again.');
+        throw new Error(`Failed to submit ${type === 'paper' ? 'paper' : 'proposal'}`);
       }
     } catch (error) {
-      console.error('Submission error:', error);
-      alert('Submission failed. Please try again.');
+      console.error('Submit error:', error);
+      alert(`Failed to submit ${type === 'paper' ? 'paper' : 'proposal'}. Please try again.`);
     }
   };
 
@@ -139,11 +157,10 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
     const file = event.target.files[0];
     if (file && (file.type === 'application/pdf' || file.name.endsWith('.tex'))) {
       setSelectedFile(file);
-      setExtractedAbstract('');
-      setIsExtractingAbstract(false);
+      setS3Url(''); // Clear S3 URL if a new file is selected
       uploadToS3(file);
     } else {
-      alert('Please select a PDF or LaTeX (.tex) file.');
+      alert(`Please select a PDF or LaTeX (.tex) file for your ${type === 'paper' ? 'paper' : 'proposal'}.`);
     }
   };
 
@@ -153,7 +170,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
 
     try {
       // Get pre-signed URL from backend
-      const response = await fetch('http://localhost:8000/api/get-upload-url', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/get-upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: file.name }),
@@ -210,6 +227,12 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
   const renderMetadataStep = () => (
     <div className="max-w-4xl mx-auto">
       <div className="card p-8">
+        {validationError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-6" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{validationError}</span>
+          </div>
+        )}
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
           {type === 'paper' ? 'Paper' : 'Proposal'} Metadata
         </h2>
@@ -218,14 +241,14 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Title *
+              {type === 'paper' ? 'Paper' : 'Proposal'} Title *
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
               className="input-field"
-              placeholder="Enter a descriptive title (max 220 characters)"
+              placeholder={type === 'paper' ? "Enter a descriptive title (max 220 characters)" : "Enter a descriptive proposal title (max 220 characters)"}
               maxLength={220}
             />
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -315,10 +338,28 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
             </div>
           </div>
 
+          {/* Abstract */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Abstract *
+            </label>
+            <textarea
+              value={formData.abstract}
+              onChange={(e) => setFormData({...formData, abstract: e.target.value})}
+              className="input-field"
+              placeholder="Enter a brief abstract (max 500 characters)"
+              rows="4"
+              maxLength={500}
+            />
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {formData.abstract.length}/500 characters
+            </div>
+          </div>
+
           {/* Keywords */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Keywords (3-6 recommended)
+              Keywords * (3-6 recommended)
             </label>
             <ChipsInput
               values={formData.keywords}
@@ -356,7 +397,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
     <div className="max-w-4xl mx-auto">
       <div className="card p-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
-          Upload Paper
+          Upload {type === 'paper' ? 'Paper' : 'Proposal'}
         </h2>
         <div className="space-y-6">
           {/* File Upload */}
@@ -366,10 +407,13 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
           >
             <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Drop your files here or click to browse
+              Drop your {type === 'paper' ? 'paper' : 'proposal'} files here or click to browse
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">
               Supports PDF, LaTeX (.pdf, .tex)
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Note: Abstract will be taken from the metadata form above
             </p>
             <input
               ref={fileInputRef}
@@ -422,7 +466,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
               Preview
             </h2>
             <div className="prose dark:prose-invert max-w-none">
-              <h1>{formData.title || `Sample Paper Title`}</h1>
+              <h1>{formData.title || `Sample ${type === 'paper' ? 'Paper' : 'Proposal'} Title`}</h1>
               <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
                 {formData.agent_authors.map((author, idx) => (
                   <span key={idx}>{author}</span>
@@ -434,11 +478,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
                 )}
               </div>
               <h2>Abstract</h2>
-              {isExtractingAbstract ? (
-                <p className="text-blue-600">Extracting abstract from uploaded file...</p>
-              ) : (
-                <p>{extractedAbstract || 'No abstract found in the uploaded file.'}</p>
-              )}
+              <p>{formData.abstract || 'No abstract provided.'}</p>
               <h2 className="mt-4">Keywords</h2>
               {formData.keywords && formData.keywords.length > 0 ? (
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -529,7 +569,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
               }`}
             >
               <Send className="h-4 w-4" />
-              <span>Submit Paper</span>
+              <span>Submit {type === 'paper' ? 'Paper' : 'Proposal'}</span>
             </button>
           </div>
         </div>

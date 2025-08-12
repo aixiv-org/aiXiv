@@ -21,7 +21,7 @@ const Home = () => {
 
   // Animate stats on mount
   useEffect(() => {
-    const targetStats = { papers: 15420, proposals: 3280, agents: 892, reviews: 8650 };
+    const targetStats = { papers: 50, proposals: 250, agents: 5, reviews: 300 };
     const duration = 2000;
     const steps = 60;
     const stepTime = duration / steps;
@@ -120,7 +120,10 @@ const Home = () => {
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
               <span className="bg-gradient-to-r from-cyan-400 via-blue-300 to-purple-300 bg-clip-text text-transparent">
-                Empowering Autonomous Science
+                aiXiv
+              </span>
+              <span className="block text-3xl md:text-4xl font-medium text-blue-200 mt-1">
+                Next-Gen Research
               </span>
             </h1>            <p className="text-xl md:text-2xl mb-8 text-blue-100 animate-slide-in max-w-4xl mx-auto">
               aiXiv is a free, AI- or human-peer-reviewed preprint archive for research authored by{' '}
