@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import API_ENDPOINTS from '../config/api';
 import { 
   User, 
   MapPin, 
@@ -20,30 +22,52 @@ import {
   Users,
   MessageSquare,
   Heart,
-  Share2
+  Share2,
+  Camera
 } from 'lucide-react';
 
 const Profile = () => {
   const { id } = useParams();
+  const { getToken, userId: clerkUserId } = useAuth();
   const [activeTab, setActiveTab] = useState('papers');
-  const [isOwnProfile] = useState(true); // Mock: assume viewing own profile
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [formData, setFormData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+  const fileInputRef = useRef(null);
 
-  // Mock profile data
-  const profileData = {
-    id: id || 'current-user',
-    name: 'Dr. Sarah Chen',
-    title: 'Senior Research Scientist',
-    affiliation: 'MIT Computer Science & Artificial Intelligence Laboratory',
-    location: 'Cambridge, MA',
-    joinDate: 'March 2021',
-    avatar: '/api/placeholder/150/150',
-    bio: 'Researcher in machine learning, computer vision, and AI systems. Passionate about developing ethical AI solutions for real-world problems.',
-    email: 'sarah.chen@mit.edu',
-    website: 'https://sarahchen.ai',
+  // Get the actual user ID - handle 'me' as special case for current user
+  // Use 'default-user' as fallback if no user ID is available
+  let profileUserId;
+  if (id === 'me' || !id) {
+    profileUserId = clerkUserId || 'default-user';
+  } else {
+    profileUserId = id;
+  }
+  
+  // Check if viewing own profile
+  // If no ID in URL or 'me', it's the current user's profile
+  // Or if the profile ID matches the current user ID
+  const isOwnProfile = !id || id === 'me' || (profileUserId === clerkUserId) || (!clerkUserId && profileUserId === 'default-user');
+  
+  // Default profile structure with stats and badges
+  const defaultProfileData = useMemo(() => ({
+    id: profileUserId,
+    name: 'New User',
+    title: '',
+    affiliation: '',
+    location: '',
+    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    avatar: null,
+    bio: '',
+    email: '',
+    website: '',
     socialLinks: {
-      github: 'https://github.com/sarahchen',
-      twitter: 'https://twitter.com/sarahchen_ai',
-      linkedin: 'https://linkedin.com/in/sarahchen'
+      github: '',
+      twitter: '',
+      linkedin: ''
     },
     stats: {
       papers: 47,
@@ -58,6 +82,234 @@ const Profile = () => {
       { name: 'Rising Star', icon: Star, color: 'bg-purple-100 text-purple-800' },
       { name: 'Community Leader', icon: Users, color: 'bg-blue-100 text-blue-800' }
     ]
+  }), [profileUserId]);
+
+  // Fetch profile data on component mount or when user ID changes
+  const fetchProfileData = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_GET(profileUserId), {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map backend data to frontend format
+        setProfileData({
+          ...defaultProfileData,
+          id: data.user_id,
+          name: data.name || defaultProfileData.name,
+          title: data.title || '',
+          affiliation: data.affiliation || '',
+          location: data.location || '',
+          avatar: data.avatar_url || null,
+          bio: data.bio || '',
+          email: data.email || '',
+          website: data.website || '',
+          socialLinks: {
+            github: data.github_url || '',
+            twitter: data.twitter_url || '',
+            linkedin: data.linkedin_url || ''
+          }
+        });
+      } else if (response.status === 404) {
+        // Profile not found, use default data
+        setProfileData(defaultProfileData);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setProfileData(defaultProfileData);
+    }
+  }, [getToken, profileUserId, defaultProfileData]);
+
+  useEffect(() => {
+    if (profileUserId) {
+      fetchProfileData();
+    }
+  }, [profileUserId, fetchProfileData]);
+
+  // Show loading state while fetching profile
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-500">Loading profile...</div>
+      </div>
+    );
+  }
+
+  // Initialize form data when entering edit mode
+  const handleEditClick = () => {
+    setIsEditMode(true);
+    setFormData({
+      name: profileData.name,
+      title: profileData.title,
+      affiliation: profileData.affiliation,
+      location: profileData.location,
+      bio: profileData.bio,
+      email: profileData.email,
+      website: profileData.website,
+      github: profileData.socialLinks.github,
+      twitter: profileData.socialLinks.twitter,
+      linkedin: profileData.socialLinks.linkedin
+    });
+    setAvatarPreview(null);
+    setAvatarFile(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
+      setAvatarFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) return null;
+
+    const formData = new FormData();
+    formData.append('avatar', avatarFile);
+    formData.append('user_id', profileData.id);
+
+    try {
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_AVATAR, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload avatar');
+      }
+
+      const result = await response.json();
+      return result.avatar_url;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      let avatarUrl = null;
+      
+      // Upload avatar first if there's a new one
+      if (avatarFile) {
+        try {
+          avatarUrl = await handleAvatarUpload();
+        } catch (error) {
+          console.error('Avatar upload failed:', error);
+          // Continue with profile update even if avatar upload fails
+        }
+      }
+
+      // Prepare profile data - filter out empty URL strings
+      const profilePayload = {
+        user_id: profileData.id,
+        name: formData.name,
+        title: formData.title || null,
+        affiliation: formData.affiliation || null,
+        location: formData.location || null,
+        bio: formData.bio || null,
+        email: formData.email || null,
+        website: formData.website || null,
+        github: formData.github || null,
+        twitter: formData.twitter || null,
+        linkedin: formData.linkedin || null
+      };
+      
+      // Add avatar URL if successfully uploaded
+      if (avatarUrl) {
+        profilePayload.avatar_url = avatarUrl;
+      }
+
+      // Call the backend API to save profile
+      const token = await getToken();
+      const response = await fetch(API_ENDPOINTS.PROFILE_UPDATE, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : undefined
+        },
+        body: JSON.stringify(profilePayload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const result = await response.json();
+      console.log('Profile updated successfully:', result);
+      
+      // Update local profile data with the saved data
+      setProfileData({
+        ...profileData,
+        name: result.name || profileData.name,
+        title: result.title || '',
+        affiliation: result.affiliation || '',
+        location: result.location || '',
+        avatar: result.avatar_url || profileData.avatar,
+        bio: result.bio || '',
+        email: result.email || '',
+        website: result.website || '',
+        socialLinks: {
+          github: result.github_url || '',
+          twitter: result.twitter_url || '',
+          linkedin: result.linkedin_url || ''
+        }
+      });
+      
+      // Exit edit mode after successful save
+      setIsEditMode(false);
+      setFormData(null);
+      setAvatarPreview(null);
+      setAvatarFile(null);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setFormData(null);
+    setAvatarPreview(null);
+    setAvatarFile(null);
   };
 
   const papers = [
@@ -205,77 +457,288 @@ const Profile = () => {
             {/* Avatar and Basic Info */}
             <div className="flex flex-col items-center lg:items-start">
               <div className="relative">
-                <img
-                  src={profileData.avatar}
-                  alt={profileData.name}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
-                />
-                {isOwnProfile && (
-                  <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
-                    <Edit className="w-4 h-4" />
-                  </button>
+                {isEditMode ? (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-300 dark:border-gray-600 cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : profileData?.avatar ? (
+                        <img
+                          src={`http://localhost:8000${profileData.avatar}`}
+                          alt={profileData.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full bg-gray-200 flex items-center justify-center"><svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <User className="w-16 h-16 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full">
+                        <div className="text-white text-center">
+                          <Camera className="w-8 h-8 mx-auto mb-1" />
+                          <span className="text-xs">Change Photo</span>
+                        </div>
+                      </div>
+                    </div>
+                    {avatarFile && (
+                      <button 
+                        onClick={() => {
+                          setAvatarFile(null);
+                          setAvatarPreview(null);
+                        }}
+                        className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <span className="text-xs">✕</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {profileData?.avatar ? (
+                      <img
+                        src={`http://localhost:8000${profileData.avatar}`}
+                        alt={profileData.name}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-32 h-32 rounded-full bg-gray-200 border-4 border-white dark:border-gray-700 shadow-lg flex items-center justify-center"><svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-white dark:border-gray-700 shadow-lg flex items-center justify-center">
+                        <User className="w-12 h-12 text-gray-400" />
+                      </div>
+                    )}
+                    {isOwnProfile && (
+                      <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               
               <div className="mt-4 text-center lg:text-left">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{profileData.name}</h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{profileData.title}</p>
-                <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-2">
-                  <MapPin className="w-4 h-4" />
-                  {profileData.affiliation}
-                </p>
-                <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-1">
-                  <Calendar className="w-4 h-4" />
-                  Joined {profileData.joinDate}
-                </p>
+                {isEditMode ? (
+                  <>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData?.name || ''}
+                      onChange={handleInputChange}
+                      className="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
+                      placeholder="Your Name"
+                    />
+                    <input
+                      type="text"
+                      name="title"
+                      value={formData?.title || ''}
+                      onChange={handleInputChange}
+                      className="text-lg text-gray-600 dark:text-gray-400 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
+                      placeholder="Your Title"
+                    />
+                    <input
+                      type="text"
+                      name="affiliation"
+                      value={formData?.affiliation || ''}
+                      onChange={handleInputChange}
+                      className="text-gray-500 dark:text-gray-500 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
+                      placeholder="Your Affiliation"
+                    />
+                    <input
+                      type="text"
+                      name="location"
+                      value={formData?.location || ''}
+                      onChange={handleInputChange}
+                      className="text-gray-500 dark:text-gray-500 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none w-full"
+                      placeholder="Your Location"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{profileData.name}</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{profileData.title}</p>
+                    <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-2">
+                      <MapPin className="w-4 h-4" />
+                      {profileData.affiliation}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-1">
+                      <Calendar className="w-4 h-4" />
+                      Joined {profileData.joinDate}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Bio and Links */}
             <div className="flex-1">
-              <p className="text-gray-700 dark:text-gray-300 mb-6">{profileData.bio}</p>
-              
-              {/* Contact Links */}
-              <div className="flex flex-wrap gap-4 mb-6">
-                <a href={`mailto:${profileData.email}`} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  <Mail className="w-4 h-4" />
-                  Email
-                </a>
-                <a href={profileData.website} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  <LinkIcon className="w-4 h-4" />
-                  Website
-                </a>
-                <a href={profileData.socialLinks.github} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  <Github className="w-4 h-4" />
-                  GitHub
-                </a>
-                <a href={profileData.socialLinks.twitter} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  <Twitter className="w-4 h-4" />
-                  Twitter
-                </a>
-                <a href={profileData.socialLinks.linkedin} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  <Linkedin className="w-4 h-4" />
-                  LinkedIn
-                </a>
-              </div>
+              {isEditMode ? (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
+                  <textarea
+                    name="bio"
+                    value={formData?.bio || ''}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none mb-6"
+                    placeholder="Tell us about yourself..."
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData?.email || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="your.email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website</label>
+                      <input
+                        type="url"
+                        name="website"
+                        value={formData?.website || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="https://yourwebsite.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">GitHub</label>
+                      <input
+                        type="url"
+                        name="github"
+                        value={formData?.github || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="https://github.com/username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Twitter</label>
+                      <input
+                        type="url"
+                        name="twitter"
+                        value={formData?.twitter || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="https://twitter.com/username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LinkedIn</label>
+                      <input
+                        type="url"
+                        name="linkedin"
+                        value={formData?.linkedin || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="https://linkedin.com/in/username"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-700 dark:text-gray-300 mb-6">{profileData.bio}</p>
+                  
+                  {/* Contact Links */}
+                  <div className="flex flex-wrap gap-4 mb-6">
+                    <a href={`mailto:${profileData.email}`} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </a>
+                    <a href={profileData.website} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <LinkIcon className="w-4 h-4" />
+                      Website
+                    </a>
+                    <a href={profileData.socialLinks.github} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <Github className="w-4 h-4" />
+                      GitHub
+                    </a>
+                    <a href={profileData.socialLinks.twitter} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <Twitter className="w-4 h-4" />
+                      Twitter
+                    </a>
+                    <a href={profileData.socialLinks.linkedin} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <Linkedin className="w-4 h-4" />
+                      LinkedIn
+                    </a>
+                  </div>
+                </>
+              )}
 
               {/* Badges */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {profileData.badges.map((badge, index) => (
-                  <span key={index} className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>
-                    <badge.icon className="w-4 h-4" />
-                    {badge.name}
-                  </span>
-                ))}
-              </div>
+              {!isEditMode && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {profileData.badges.map((badge, index) => (
+                    <span key={index} className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>
+                      <badge.icon className="w-4 h-4" />
+                      {badge.name}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3">
                 {isOwnProfile ? (
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    <Settings className="w-4 h-4" />
-                    Edit Profile
-                  </button>
+                  isEditMode ? (
+                    <>
+                      <button 
+                        onClick={handleSave}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? (
+                          <>
+                            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </button>
+                      <button 
+                        onClick={handleCancel}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      onClick={handleEditClick}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Edit Profile
+                    </button>
+                  )
                 ) : (
                   <>
                     <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
