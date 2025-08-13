@@ -27,6 +27,9 @@ jobs:
       
     - name: Build application
       working-directory: ./ui
+      env:
+        REACT_APP_CLERK_PUBLISHABLE_KEY: ${{ secrets.REACT_APP_CLERK_PUBLISHABLE_KEY }}
+        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
       run: npm run build
       
     - name: Configure AWS credentials
