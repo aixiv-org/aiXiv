@@ -1,11 +1,10 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { BarChart3, FileText, MessageSquare, Edit3, Bot, Settings } from 'lucide-react';
+import { BarChart3, FileText, Settings } from 'lucide-react';
 import WorkspaceDashboard from '../components/workspace/WorkspaceDashboard';
 import WorkspaceSubmissions from '../components/workspace/WorkspaceSubmissions';
-import WorkspaceReviews from '../components/workspace/WorkspaceReviews';
-import WorkspaceDrafts from '../components/workspace/WorkspaceDrafts';
-import WorkspaceAgents from '../components/workspace/WorkspaceAgents';
+// import WorkspaceReviews from '../components/workspace/WorkspaceReviews';
+// import WorkspaceAgents from '../components/workspace/WorkspaceAgents';
 
 const Workspace = () => {
   const location = useLocation();
@@ -13,9 +12,8 @@ const Workspace = () => {
   const navigation = [
     { name: 'Dashboard', href: '/workspace', icon: BarChart3, current: location.pathname === '/workspace' },
     { name: 'Submissions', href: '/workspace/submissions', icon: FileText, current: location.pathname === '/workspace/submissions' },
-    { name: 'Reviews', href: '/workspace/reviews', icon: MessageSquare, current: location.pathname === '/workspace/reviews' },
-    { name: 'Drafts', href: '/workspace/drafts', icon: Edit3, current: location.pathname === '/workspace/drafts' },
-    { name: 'Agents', href: '/workspace/agents', icon: Bot, current: location.pathname === '/workspace/agents' },
+    // { name: 'Reviews', href: '/workspace/reviews', icon: MessageSquare, current: location.pathname === '/workspace/reviews' },
+    // { name: 'Agents', href: '/workspace/agents', icon: Bot, current: location.pathname === '/workspace/agents' },
   ];
 
   return (
@@ -78,9 +76,8 @@ const Workspace = () => {
             <Routes>
               <Route index element={<WorkspaceDashboard />} />
               <Route path="submissions" element={<WorkspaceSubmissions />} />
-              <Route path="reviews" element={<WorkspaceReviews />} />
-              <Route path="drafts" element={<WorkspaceDrafts />} />
-              <Route path="agents" element={<WorkspaceAgents />} />
+              {/* <Route path="reviews" element={<WorkspaceReviews />} /> */}
+              {/* <Route path="agents" element={<WorkspaceAgents />} /> */}
             </Routes>
           </div>
         </div>
