@@ -39,47 +39,34 @@ jobs:
     - name: Deploy to S3
       working-directory: ./ui
       run: |
-        # Create S3 bucket if it doesn't exist
-        aws s3 mb s3://aixiv-frontend --region us-east-1 || true
-        
-        # Disable Block Public Access settings
-        aws s3api put-public-access-block --bucket aixiv-frontend --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-        
-        # Configure S3 bucket for static website hosting
-        aws s3 website s3://aixiv-frontend --index-document index.html --error-document index.html
-        
-        # Create bucket policy for public read access
-        cat > bucket-policy.json << EOF
-        {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "PublicReadGetObject",
-                    "Effect": "Allow",
-                    "Principal": "*",
-                    "Action": "s3:GetObject",
-                    "Resource": "arn:aws:s3:::aixiv-frontend/*"
-                }
-            ]
-        }
-        EOF
-        
-        aws s3api put-bucket-policy --bucket aixiv-frontend --policy file://bucket-policy.json
-        
-        # Upload files to S3
+        echo "📤 Uploading files to S3..."
         aws s3 sync build/ s3://aixiv-frontend --delete --cache-control "max-age=31536000,public"
+        echo "✅ Files uploaded to S3"
         
     - name: Invalidate CloudFront cache
       run: |
-        # Get CloudFront distribution ID
+        echo "🔄 Invalidating CloudFront cache..."
+        # Get CloudFront distribution ID for aixiv.co
         DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items[?contains(@, 'aixiv.co')]].Id" --output text)
         
         if [ ! -z "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
           aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+          echo "✅ CloudFront cache invalidated for distribution: $DISTRIBUTION_ID"
+        else
+          echo "⚠️  No CloudFront distribution found for aixiv.co"
+          echo "   Please run aws-deploy.sh first to set up infrastructure"
+          exit 1
         fi
         
     - name: Deploy status
       run: |
-        echo "✅ Deployment completed!"
+        echo "✅ Application deployment completed!"
         echo "🌐 Your site will be available at: https://aixiv.co"
-        echo "⏳ CloudFront distribution may take 10-15 minutes to fully deploy." 
+        echo "⏳ CloudFront changes may take 5-10 minutes to propagate"
+        echo ""
+        echo "📋 What was deployed:"
+        echo "   - React app built and uploaded to S3"
+        echo "   - CloudFront cache invalidated"
+        echo ""
+        echo "🔧 For infrastructure changes (S3, CloudFront, DNS, SSL):"
+        echo "   Use: ./aws-deploy.sh" 
