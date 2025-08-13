@@ -2,12 +2,27 @@
 node_modules/
 /.pnp
 .pnp.js
+jspm_packages/
 
 # Production builds
 /ui/build
 /ui/dist
 /build
 /dist
+.next
+out
+.nuxt
+.vuepress/dist
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 
 # Runtime data
 pids
@@ -18,94 +33,18 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
-
-# nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+# Cache directories
+.cache
+.parcel-cache
 .grunt
-
-# Bower dependency directory (https://bower.io/)
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
-
-# Dependency directories
-jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
 .rpt2_cache/
 .rts2_cache_cjs/
 .rts2_cache_es/
 .rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-out
-
-# Nuxt.js build / generate output
-.nuxt
-
-# Gatsby files
-.cache/
-
-# Vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless/
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# yarn v2
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
+.eslintcache
+*.tsbuildinfo
 
 # Logs
 logs
@@ -115,20 +54,15 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Optional npm cache directory
+# Package managers
 .npm
-
-# Optional eslint cache
-.eslintcache
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+yarn-integrity
+*.tgz
 
 # Editor directories and files
 .vscode/
@@ -136,6 +70,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
 # OS generated files
 .DS_Store
@@ -145,16 +81,15 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Python-related (for any backend components)
+# Python-related (for backend components)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -169,7 +104,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.env
 .venv
 env/
 venv/
@@ -180,27 +114,19 @@ venv.bak/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
+# Python version management
 .python-version
-
-# pipenv
 Pipfile.lock
-
-# poetry
 poetry.lock
 
-# Celery stuff
+# Celery
 celerybeat-schedule
 celerybeat.pid
 
-# SageMath parsed files
-*.sage.py
-
-# Environments
+# Python tools
 .spyderproject
 .spyproject
 .ropeproject
-/site
 .mypy_cache/
 .dmypy.json
 dmypy.json
@@ -224,24 +150,20 @@ temp/
 *.tar.gz
 *.rar
 
-# IDE and editor files
-*.sublime-project
-*.sublime-workspace
-.vscode/
-.idea/
-
-# Mac files
-.DS_Store
-
-# Windows files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
 # Papers and documents (if you don't want to commit them)
 *.pdf
 *.doc
 *.docx
 downloads/
 
-ui/node_modules/
+# Serverless
+.serverless/
+
+# DynamoDB Local
+.dynamodb/
+
+# TernJS
+.tern-port
+
+# FuseBox
+.fusebox/
