@@ -28,10 +28,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "deploy": "./aws-deploy.sh",
-    "deploy:s3": "aws s3 sync build/ s3://aixiv-frontend --delete --cache-control \"max-age=31536000,public\"",
-    "deploy:invalidate": "aws cloudfront create-invalidation --distribution-id $(aws cloudfront list-distributions --query \"DistributionList.Items[?Aliases.Items[?contains(@, 'aixiv.co')]].Id\" --output text) --paths \"/*\""
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [

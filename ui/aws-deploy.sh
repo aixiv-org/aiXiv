@@ -92,10 +92,11 @@ DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.It
 if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" = "None" ]; then
     echo "Creating new CloudFront distribution..."
     
-    # Create SSL certificate in ACM
-    echo "🔐 Creating SSL certificate for $DOMAIN_NAME..."
+    # Create SSL certificate in ACM for both root domain and www subdomain
+    echo "🔐 Creating SSL certificate for $DOMAIN_NAME and www.$DOMAIN_NAME..."
     CERT_ARN=$(aws acm request-certificate \
         --domain-name $DOMAIN_NAME \
+        --subject-alternative-names "www.$DOMAIN_NAME" \
         --validation-method DNS \
         --region us-east-1 \
         --query 'CertificateArn' \
@@ -158,10 +159,10 @@ EOF
     echo ""
     echo "📋 Next Steps:"
     echo "1. Go to AWS Certificate Manager (ACM) in us-east-1 region"
-    echo "2. Find the certificate for $DOMAIN_NAME"
+    echo "2. Find the certificate for $DOMAIN_NAME and www.$DOMAIN_NAME"
     echo "3. Add the DNS validation records to your Route53 hosted zone"
     echo "4. Wait for certificate validation (usually 5-10 minutes)"
-    echo "5. Run this script again to update the distribution with your domain"
+    echo "5. Run this script again to update the distribution with both domains"
 else
     echo "✅ CloudFront distribution already exists: $DISTRIBUTION_ID"
 fi
@@ -185,7 +186,7 @@ else
     # Get CloudFront domain name
     CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution --id $DISTRIBUTION_ID --query 'Distribution.DomainName' --output text)
     
-    # Create Route53 record
+    # Create Route53 records for both root domain and www subdomain
     cat > route53-change.json << EOF
 {
     "Changes": [
@@ -200,6 +201,18 @@ else
                     "EvaluateTargetHealth": false
                 }
             }
+        },
+        {
+            "Action": "UPSERT",
+            "ResourceRecordSet": {
+                "Name": "www.$DOMAIN_NAME",
+                "Type": "A",
+                "AliasTarget": {
+                    "HostedZoneId": "Z2FDTNDATAQYW2",
+                    "DNSName": "$CLOUDFRONT_DOMAIN",
+                    "EvaluateTargetHealth": false
+                }
+            }
         }
     ]
 }
@@ -207,7 +220,7 @@ EOF
 
     aws route53 change-resource-record-sets --hosted-zone-id $HOSTED_ZONE_ID --change-batch file://route53-change.json
     rm route53-change.json
-    echo "✅ Route53 record created/updated"
+    echo "✅ Route53 records created/updated for both $DOMAIN_NAME and www.$DOMAIN_NAME"
 fi
 
 echo ""
@@ -216,9 +229,9 @@ echo ""
 echo "📋 Deployment Summary:"
 echo "   S3 Bucket: $BUCKET_NAME"
 echo "   CloudFront Distribution: $DISTRIBUTION_ID"
-echo "   Domain: https://$DOMAIN_NAME"
+echo "   Domains: https://$DOMAIN_NAME and https://www.$DOMAIN_NAME"
 echo ""
 echo "⏳ CloudFront distribution may take 10-15 minutes to fully deploy."
-echo "Your site will be available at: https://$DOMAIN_NAME"
+echo "Your site will be available at: https://$DOMAIN_NAME and https://www.$DOMAIN_NAME"
 echo ""
 echo "🔧 To update the deployment in the future, just run this script again." 

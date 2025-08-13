@@ -1,160 +1,146 @@
-# AWS Deployment Guide for aiXiv Frontend
+# aiXiv Deployment Guide
 
-This guide will help you deploy your React frontend to AWS using S3 + CloudFront + Route53.
+## 🎯 **Simple Deployment Workflow**
 
-## Prerequisites
+### **Daily Development → Production (Recommended)**
+```bash
+# 1. Develop locally
+npm start
 
-1. **AWS Account** with appropriate permissions
-2. **AWS CLI** installed and configured
-3. **Domain registered** in Route53 (aixiv.co)
-4. **Node.js** and npm installed
+# 2. Test your changes
+npm test
 
-## Quick Deployment
+# 3. Deploy to production (automatic!)
+git add .
+git commit -m "Your commit message"
+git push origin main
+```
 
-### Option 1: Automated Script (Recommended)
+**That's it!** GitHub Actions automatically builds and deploys your app to AWS.
 
-1. **Make the script executable:**
-   ```bash
-   chmod +x aws-deploy.sh
-   ```
+---
 
-2. **Run the deployment script:**
-   ```bash
-   ./aws-deploy.sh
-   ```
+## 🏗️ **Infrastructure vs Application Deployment**
 
-The script will automatically:
-- Build your React app
+### **🚀 Application Deployment (GitHub Actions)**
+- **Triggers**: Every push to main branch
+- **What it does**: Builds React app → Uploads to S3 → Invalidates CloudFront cache
+- **When to use**: Code updates, bug fixes, new features
+- **Command**: `git push origin main` (automatic)
+
+### **🔧 Infrastructure Setup (aws-deploy.sh)**
+- **Triggers**: Manual execution
+- **What it does**: Creates S3 bucket, CloudFront, Route53, SSL certificates
+- **When to use**: Initial setup, infrastructure changes, SSL updates
+- **Command**: `./aws-deploy.sh`
+
+---
+
+## 🚀 **Initial Setup (One-time only)**
+
+### **First-time deployment or infrastructure changes:**
+```bash
+# Make script executable
+chmod +x aws-deploy.sh
+
+# Run initial setup
+./aws-deploy.sh
+```
+
+This script will:
 - Create S3 bucket
-- Configure static website hosting
 - Set up CloudFront distribution
-- Configure Route53 DNS records
-- Upload files and invalidate cache
+- Configure Route53 DNS
+- Set up SSL certificates
 
-### Option 2: Manual Steps
+---
 
-#### 1. Build the Application
+## 🔄 **Daily Development Workflow**
+
+### **1. Code Changes**
 ```bash
-npm run build
+# Make your changes
+npm start  # Test locally
 ```
 
-#### 2. Create S3 Bucket
+### **2. Deploy to Production**
 ```bash
-aws s3 mb s3://aixiv-frontend --region us-east-1
+git add .
+git commit -m "Add new feature"
+git push origin main
 ```
 
-#### 3. Configure S3 for Static Website Hosting
+### **3. Monitor Deployment**
+- Check GitHub Actions tab
+- See build and deployment progress
+- Wait 5-10 minutes for CloudFront propagation
+
+---
+
+## 🌍 **Environment Variables**
+
+### **Local Development (.env file):**
 ```bash
-aws s3 website s3://aixiv-frontend --index-document index.html --error-document index.html
+REACT_APP_CLERK_PUBLISHABLE_KEY=your_clerk_key
+REACT_APP_API_URL=https://api.aixiv.co
 ```
 
-#### 4. Set Bucket Policy for Public Access
-```bash
-aws s3api put-bucket-policy --bucket aixiv-frontend --policy '{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "PublicReadGetObject",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::aixiv-frontend/*"
-        }
-    ]
-}'
-```
+### **Production (GitHub Secrets):**
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
-#### 5. Upload Files to S3
-```bash
-aws s3 sync build/ s3://aixiv-frontend --delete --cache-control "max-age=31536000,public"
-```
+---
 
-#### 6. Create CloudFront Distribution
-Use the AWS Console or AWS CLI to create a CloudFront distribution pointing to your S3 bucket.
+## ❓ **FAQ**
 
-#### 7. Configure Route53
-Create an A record pointing your domain to the CloudFront distribution.
+**Q: How do I deploy code changes?**
+A: Just push to main branch! GitHub Actions handles everything.
 
-## GitHub Actions Deployment
+**Q: When do I use aws-deploy.sh?**
+A: Only for initial setup or infrastructure changes (S3, CloudFront, DNS, SSL).
 
-For automated deployment on every push:
+**Q: What if GitHub Actions fails?**
+A: Check the logs. If it's an infrastructure issue, run `./aws-deploy.sh` first.
 
-1. **Add AWS credentials to GitHub Secrets:**
-   - Go to your GitHub repository → Settings → Secrets and variables → Actions
-   - Add `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+**Q: Can I update SSL certificates via GitHub Actions?**
+A: No, use `./aws-deploy.sh` for infrastructure changes.
 
-2. **Push to main/master branch:**
-   The GitHub Actions workflow will automatically deploy your changes.
+---
 
-## Environment Variables
+## ✅ **Best Practices**
 
-Make sure to set the correct environment variables for production:
+1. **Always test locally first** → `npm start`
+2. **Use descriptive commit messages**
+3. **Push to main for automatic deployment**
+4. **Monitor GitHub Actions for deployment status**
+5. **Use aws-deploy.sh only for infrastructure changes**
 
-```bash
-# In your .env file or deployment environment
-REACT_APP_CLERK_PUBLISHABLE_KEY=your_production_clerk_key
-REACT_APP_API_URL=https://your-backend-domain.com
-```
+---
 
-## SSL Certificate
+## 🆘 **Troubleshooting**
 
-CloudFront will automatically provision an SSL certificate for your domain through AWS Certificate Manager.
+### **Application deployment failed?**
+1. Check GitHub Actions logs
+2. Verify AWS credentials in GitHub Secrets
+3. Check if S3 bucket exists and is accessible
 
-## Troubleshooting
+### **Infrastructure issues?**
+1. Run `./aws-deploy.sh` to fix infrastructure
+2. Check AWS Console for S3, CloudFront, Route53 status
+3. Verify SSL certificate validation
 
-### Common Issues
+### **Site not updating?**
+1. Wait 5-10 minutes for CloudFront propagation
+2. Check if CloudFront invalidation succeeded
+3. Verify Route53 DNS settings
 
-1. **403 Forbidden on S3:**
-   - Check bucket policy allows public read access
-   - Ensure bucket is configured for static website hosting
+---
 
-2. **CloudFront not updating:**
-   - Create cache invalidation: `aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"`
+## 📋 **Deployment Summary**
 
-3. **Domain not resolving:**
-   - Check Route53 A record points to CloudFront distribution
-   - Verify CloudFront distribution has your domain as an alias
-
-4. **CORS issues:**
-   - Ensure your backend CORS settings include your production domain
-
-### Useful Commands
-
-```bash
-# Check S3 bucket contents
-aws s3 ls s3://aixiv-frontend
-
-# List CloudFront distributions
-aws cloudfront list-distributions
-
-# Get distribution details
-aws cloudfront get-distribution --id YOUR_DISTRIBUTION_ID
-
-# Invalidate cache
-aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
-
-# Check Route53 records
-aws route53 list-resource-record-sets --hosted-zone-id YOUR_HOSTED_ZONE_ID
-```
-
-## Cost Optimization
-
-- **S3**: Very low cost for static hosting
-- **CloudFront**: Pay per request and data transfer
-- **Route53**: ~$0.50/month per hosted zone
-- **ACM**: Free SSL certificates
-
-## Security Best Practices
-
-1. **IAM Roles:** Use IAM roles instead of access keys when possible
-2. **Bucket Policies:** Only allow necessary permissions
-3. **CloudFront:** Enable security headers and HTTPS redirect
-4. **Monitoring:** Set up CloudWatch alarms for costs and errors
-
-## Next Steps
-
-After deployment:
-1. Test all functionality on the production domain
-2. Set up monitoring and logging
-3. Configure backup and disaster recovery
-4. Set up CI/CD pipeline for automated deployments 
+| Task | Tool | When |
+|------|------|------|
+| **Code Updates** | GitHub Actions | Every push to main |
+| **Infrastructure** | aws-deploy.sh | Initial setup, changes |
+| **Local Testing** | npm start | Before every commit |
+| **Emergency Deploy** | aws-deploy.sh | If GitHub Actions fails | 
