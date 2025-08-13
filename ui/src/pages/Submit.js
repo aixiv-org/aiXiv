@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, ChevronRight, Check, Lightbulb } from 'lucide-react';
 import SubmissionWizard from '../components/SubmissionWizard';
+import { useLocation } from 'react-router-dom';
 
 const Submit = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [submissionType, setSubmissionType] = useState(null);
   const [showBulkPanel, setShowBulkPanel] = useState(false);
+
+  const location = useLocation();
+  const key = new URLSearchParams(location.search).get('new') || 'default';
+
+  // Reset state when key changes (i.e., when user clicks Submit in header)
+  useEffect(() => {
+    setCurrentStep(0);
+    setSubmissionType(null);
+    setShowBulkPanel(false);
+  }, [key]);
 
   const handleTypeSelection = (type) => {
     setSubmissionType(type);
@@ -23,11 +34,11 @@ const Submit = () => {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 mb-12">
+      <div className="flex justify-center mb-12">
         {/* Paper Card */}
         <div 
           onClick={() => handleTypeSelection('paper')}
-          className="card p-8 cursor-pointer hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800 group"
+          className="card p-8 cursor-pointer hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800 group mr-8"
         >
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -169,6 +180,7 @@ const Submit = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {currentStep === 0 ? renderTypeSelection() : (
           <SubmissionWizard 
+            key={key}
             type={submissionType}
             currentStep={currentStep}
             setCurrentStep={setCurrentStep}
