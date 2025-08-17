@@ -107,6 +107,13 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
         setValidationError(`Please fill out all required fields: ${missingFields.join(', ')}.`);
         return;
       }
+      
+      // Check abstract word count
+      const wordCount = Math.ceil(formData.abstract.length / 5);
+      if (wordCount > 500) {
+        setValidationError(`Abstract is too long. Maximum 500 words allowed (currently ${wordCount} words).`);
+        return;
+      }
     }
     setValidationError(''); // Clear error if validation passes
     if (currentStep < steps.length - 1) {
@@ -139,12 +146,9 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
       console.log('=== FRONTEND DEBUG ===');
       console.log('1. Type prop:', type);
       console.log('2. FormData doc_type:', formData.doc_type);
-      console.log('3. FormData aixiv_id:', formData.aixiv_id);
-      console.log('4. Final payload doc_type:', payload.doc_type);
-      console.log('5. Final payload aixiv_id:', payload.aixiv_id);
-      console.log('6. Final payload version:', payload.version);
-      console.log('7. Final payload doi:', payload.doi);
-      console.log('8. Complete payload:', JSON.stringify(payload, null, 2));
+      console.log('3. Final payload doc_type:', payload.doc_type);
+      console.log('4. Abstract word count:', Math.ceil(formData.abstract.length / 5));
+      console.log('5. Complete payload:', JSON.stringify(payload, null, 2));
 
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submit`, {
         method: 'POST',
@@ -372,12 +376,12 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
               value={formData.abstract}
               onChange={(e) => setFormData({...formData, abstract: e.target.value})}
               className="input-field"
-              placeholder="Enter a brief abstract (max 500 characters)"
-              rows="4"
-              maxLength={500}
+              placeholder="Enter a comprehensive abstract (max 500 words)"
+              rows="6"
+              maxLength={2500}
             />
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {formData.abstract.length}/500 characters
+              {formData.abstract.length} characters • {Math.ceil(formData.abstract.length / 5)} words (max 500 words)
             </div>
           </div>
 
