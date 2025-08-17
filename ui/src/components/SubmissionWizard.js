@@ -53,7 +53,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
     category: [],
     abstract: '',
     keywords: [],
-    license: 'CC-BY-4.0',
+    license: '', // Removed default license
     doc_type: type, // Set doc_type based on the type prop
   });
   
@@ -91,7 +91,8 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
         'Agent Authors': formData.agent_authors,
         'Corresponding Author': formData.corresponding_author,
         'Abstract': formData.abstract,
-        'Keywords': formData.keywords
+        'Keywords': formData.keywords,
+        'License': formData.license, // Added license to required fields
       };
 
       const missingFields = Object.entries(requiredFields)
@@ -168,6 +169,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
           keywords: [],
           category: [],
           abstract: '',
+          license: '', // Reset license field
           doc_type: type,
         });
         setSelectedFile(null);
@@ -409,7 +411,9 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
               value={formData.license}
               onChange={(e) => setFormData({...formData, license: e.target.value})}
               className="input-field"
+              required // Added required attribute
             >
+              <option value="" disabled>Select a license</option>
               <option value="CC-BY-4.0">CC BY 4.0 (Recommended)</option>
               <option value="CC-BY-SA-4.0">CC BY-SA 4.0</option>
               <option value="CC-BY-NC-4.0">CC BY-NC 4.0</option>

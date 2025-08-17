@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, Eye, Trash2, BarChart3, FileText, Clock, CheckCircle } from 'lucide-react';
+import { Filter, Edit, Trash2, FileText, Clock, CheckCircle } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
+import EditSubmissionModal from './EditSubmissionModal';
 
 const WorkspaceSubmissions = () => {
   const { user } = useUser();
@@ -9,6 +10,8 @@ const WorkspaceSubmissions = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingSubmission, setEditingSubmission] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Fetch submissions from API
   useEffect(() => {
@@ -37,6 +40,88 @@ const WorkspaceSubmissions = () => {
     }
   }, [user?.id]);
 
+  // Handle edit submission
+  const handleEditSubmission = (submission) => {
+    setEditingSubmission(submission);
+    setShowEditModal(true);
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingSubmission(null);
+    setShowEditModal(false);
+  };
+
+  // Handle submit edit
+  const handleSubmitEdit = async (updatedData, newFile) => {
+    try {
+      let s3Url = editingSubmission.s3_url; // Default to existing URL
+
+      // If a new file was uploaded, handle the S3 upload process
+      if (newFile) {
+        // 1. Get pre-signed URL from backend
+        const presignedUrlResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/get-upload-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: newFile.name }),
+        });
+
+        if (!presignedUrlResponse.ok) {
+          throw new Error('Failed to get pre-signed URL for re-upload.');
+        }
+
+        const { upload_url, s3_url: newS3Url } = await presignedUrlResponse.json();
+        s3Url = newS3Url; // Set the new S3 URL for the payload
+
+        // 2. Upload the new file to S3
+        const contentType = newFile.name.endsWith('.tex') ? 'application/x-tex' : 'application/pdf';
+        const uploadResponse = await fetch(upload_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': contentType },
+          body: newFile,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to re-upload file to S3.');
+        }
+      }
+
+      // Prepare payload for new version (without version or aixiv_id in the body)
+      const payload = {
+        ...updatedData,
+        s3_url: s3Url, // Use new or existing URL
+        uploaded_by: user?.id,
+        doc_type: editingSubmission.doc_type,
+        status: 'Under Review', // Reset status for new version
+      };
+
+      // Submit to the new version-specific endpoint
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions/${editingSubmission.aixiv_id}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        // Refresh submissions list
+        const refreshResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions`);
+        if (refreshResponse.ok) {
+          const newData = await refreshResponse.json();
+          setSubmissions(newData);
+        }
+        
+        setShowEditModal(false);
+        setEditingSubmission(null);
+        alert(`New version submitted successfully!`);
+      } else {
+        throw new Error(`Failed to submit new version: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('Error submitting new version:', err);
+      alert('Failed to submit new version. Please try again.');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'published': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -53,11 +138,13 @@ const WorkspaceSubmissions = () => {
     }
   };
 
-  const filteredSubmissions = submissions.filter(submission => {
-    if (filterType !== 'all' && submission.doc_type !== filterType) return false;
-    if (filterStatus !== 'all' && submission.status !== filterStatus) return false;
-    return true;
-  });
+  const filteredSubmissions = submissions
+    .filter(submission => {
+      if (filterType !== 'all' && submission.doc_type !== filterType) return false;
+      if (filterStatus !== 'all' && submission.status !== filterStatus) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by newest first
 
   return (
     <div className="space-y-6">
@@ -159,7 +246,7 @@ const WorkspaceSubmissions = () => {
                   </h3>
 
                   {/* Metadata */}
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <div className="flex flex-wrap items-center text-sm text-gray-500 dark:text-gray-400 mb-4 space-x-4">
                     <span>Submitted {new Date(submission.created_at).toLocaleDateString()}</span>
                     <span>•</span>
                     <span>{submission.views} views</span>
@@ -182,11 +269,12 @@ const WorkspaceSubmissions = () => {
                   </div>
                   
                   <div className="flex items-center space-x-1">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                      <BarChart3 className="h-4 w-4" />
+                    <button 
+                      onClick={() => handleEditSubmission(submission)}
+                      className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      title="Edit submission"
+                    >
+                      <Edit className="h-4 w-4" />
                     </button>
                     <button className="p-2 text-gray-400 hover:text-red-600 transition-colors">
                       <Trash2 className="h-4 w-4" />
@@ -213,6 +301,14 @@ const WorkspaceSubmissions = () => {
         </div>
       )}
 
+      {/* Edit Submission Modal */}
+      <EditSubmissionModal
+        submission={editingSubmission}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleSubmitEdit}
+        onCancel={handleCancelEdit}
+      />
 
     </div>
   );
