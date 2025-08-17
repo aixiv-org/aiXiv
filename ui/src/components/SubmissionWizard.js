@@ -54,6 +54,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
     abstract: '',
     keywords: [],
     license: 'CC-BY-4.0',
+    doc_type: type, // Set doc_type based on the type prop
   });
   
   const [complianceChecks, setComplianceChecks] = useState({
@@ -115,13 +116,35 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
 
   const handleSubmit = async () => {
     try {
+      // Validate required fields before submission
+      if (!s3Url) {
+        alert('Please upload a file before submitting');
+        return;
+      }
+      
+      if (!user?.id) {
+        alert('User authentication required');
+        return;
+      }
+
       const payload = {
         ...formData,
         s3_url: s3Url,
         abstract: formData.abstract, // Use manually entered abstract
         uploaded_by: user?.id,
-        submission_type: type
+        doc_type: type, // Include doc_type
       };
+      
+      // Frontend debug - verify data being sent
+      console.log('=== FRONTEND DEBUG ===');
+      console.log('1. Type prop:', type);
+      console.log('2. FormData doc_type:', formData.doc_type);
+      console.log('3. FormData aixiv_id:', formData.aixiv_id);
+      console.log('4. Final payload doc_type:', payload.doc_type);
+      console.log('5. Final payload aixiv_id:', payload.aixiv_id);
+      console.log('6. Final payload version:', payload.version);
+      console.log('7. Final payload doi:', payload.doi);
+      console.log('8. Complete payload:', JSON.stringify(payload, null, 2));
 
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submit`, {
         method: 'POST',
@@ -130,7 +153,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
       });
 
       if (response.ok) {
-        await response.json(); // Just consume the response, don't store it
+        await response.json(); // Just consume the response
         alert(`${type === 'paper' ? 'Paper' : 'Proposal'} submitted successfully!`);
         // Reset form or redirect
         setCurrentStep(1);
@@ -140,12 +163,15 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
           corresponding_author: '',
           keywords: [],
           category: [],
-          abstract: ''
+          abstract: '',
+          doc_type: type,
         });
         setSelectedFile(null);
         setS3Url('');
       } else {
-        throw new Error(`Failed to submit ${type === 'paper' ? 'paper' : 'proposal'}`);
+        const errorText = await response.text();
+        console.error('Backend error:', response.status, response.statusText, errorText);
+        throw new Error(`Failed to submit ${type === 'paper' ? 'paper' : 'proposal'}: ${response.status}`);
       }
     } catch (error) {
       console.error('Submit error:', error);
@@ -215,7 +241,6 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
         xhr.send(file);
       });
 
-      console.log('File uploaded successfully to S3');
     } catch (error) {
       console.error('Upload error:', error);
       alert('File upload failed. Please try again.');
@@ -467,6 +492,7 @@ const SubmissionWizard = ({ type, currentStep, setCurrentStep, onBack }) => {
             </h2>
             <div className="prose dark:prose-invert max-w-none">
               <h1>{formData.title || `Sample ${type === 'paper' ? 'Paper' : 'Proposal'} Title`}</h1>
+              
               <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
                 {formData.agent_authors.map((author, idx) => (
                   <span key={idx}>{author}</span>

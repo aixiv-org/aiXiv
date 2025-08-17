@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, Eye, Edit, Trash2, BarChart3, Upload, FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Filter, Eye, Edit, Trash2, BarChart3, FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 const WorkspaceSubmissions = () => {
   const [filterType, setFilterType] = useState('all');
@@ -8,8 +8,9 @@ const WorkspaceSubmissions = () => {
   const submissions = [
     {
       id: 'SUB-2024-001',
+      aixiv_id: 'aixiv.240115.000001',
       title: 'Neural Architecture Search for Efficient Transformer Models',
-      type: 'paper',
+      doc_type: 'paper',
       status: 'published',
       date: '2024-01-15',
       views: 1247,
@@ -18,9 +19,10 @@ const WorkspaceSubmissions = () => {
       version: '1.2',
     },
     {
-      id: 'SUB-2024-002', 
+      id: 'SUB-2024-002',
+      aixiv_id: 'aixiv.240110.000001',
       title: 'Federated Learning Framework for Privacy-Preserving AI',
-      type: 'paper',
+      doc_type: 'paper',
       status: 'under-review',
       date: '2024-01-10',
       views: 456,
@@ -30,8 +32,9 @@ const WorkspaceSubmissions = () => {
     },
     {
       id: 'SUB-2024-003',
+      aixiv_id: 'aixiv.240108.000001',
       title: 'Proposal: Automated Scientific Discovery Through AI Agents',
-      type: 'proposal',
+      doc_type: 'proposal',
       status: 'revision-needed',
       date: '2024-01-08',
       views: 789,
@@ -41,8 +44,9 @@ const WorkspaceSubmissions = () => {
     },
     {
       id: 'SUB-2024-004',
+      aixiv_id: 'aixiv.240105.000001',
       title: 'Quantum Machine Learning Applications in Drug Discovery',
-      type: 'paper',
+      doc_type: 'paper',
       status: 'draft',
       date: '2024-01-05',
       views: 0,
@@ -73,7 +77,7 @@ const WorkspaceSubmissions = () => {
   };
 
   const filteredSubmissions = submissions.filter(submission => {
-    if (filterType !== 'all' && submission.type !== filterType) return false;
+    if (filterType !== 'all' && submission.doc_type !== filterType) return false;
     if (filterStatus !== 'all' && submission.status !== filterStatus) return false;
     return true;
   });
@@ -88,10 +92,7 @@ const WorkspaceSubmissions = () => {
             Manage your papers, proposals, and drafts
           </p>
         </div>
-        <button className="btn-primary flex items-center space-x-2">
-          <Upload className="h-4 w-4" />
-          <span>New Submission</span>
-        </button>
+
       </div>
 
       {/* Filters */}
@@ -138,11 +139,11 @@ const WorkspaceSubmissions = () => {
                   {/* Header */}
                   <div className="flex items-center space-x-3 mb-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                      submission.type === 'paper' 
+                      submission.doc_type === 'paper' 
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                         : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                     }`}>
-                      {submission.type.toUpperCase()}
+                      {submission.doc_type.toUpperCase()}
                     </span>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {submission.id}
@@ -172,17 +173,7 @@ const WorkspaceSubmissions = () => {
                     )}
                   </div>
 
-                  {/* Status Bar */}
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        submission.status === 'published' ? 'bg-green-500 w-full' :
-                        submission.status === 'under-review' ? 'bg-yellow-500 w-3/4' :
-                        submission.status === 'revision-needed' ? 'bg-red-500 w-1/2' :
-                        'bg-gray-400 w-1/4'
-                      }`}
-                    />
-                  </div>
+
                 </div>
 
                 {/* Actions */}
@@ -225,9 +216,7 @@ const WorkspaceSubmissions = () => {
           <p className="text-gray-500 dark:text-gray-400 mb-6">
             Try adjusting your filters or create your first submission.
           </p>
-          <button className="btn-primary">
-            Create New Submission
-          </button>
+
         </div>
       )}
 
