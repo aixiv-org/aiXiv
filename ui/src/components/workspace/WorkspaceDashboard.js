@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, FileText, MessageSquare, Clock, CheckCircle } from 'lucide-react';
+import { TrendingUp, FileText, MessageSquare, Clock } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 
 const WorkspaceDashboard = () => {
