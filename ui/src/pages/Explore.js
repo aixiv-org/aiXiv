@@ -236,9 +236,9 @@ const Explore = () => {
 
       {/* Content */}
       <Link to={`/submission/${result.id}`}>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-primary-600 cursor-pointer">
-          {result.title}
-        </h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-primary-600 cursor-pointer">
+        {result.title}
+      </h3>
       </Link>
       
       <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
@@ -262,13 +262,13 @@ const Explore = () => {
       <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
         <span>{result.category} • {result.date}</span>
         <div className="flex items-center space-x-2">
-                     <span className={`px-2 py-1 rounded text-xs ${
+        <span className={`px-2 py-1 rounded text-xs ${
              result.status?.toLowerCase() === 'published' 
-               ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-               : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-           }`}>
-             {result.status}
-           </span>
+            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+        }`}>
+          {result.status}
+        </span>
            {result.aixiv_id && (
              <span className="text-xs text-gray-500">
                {result.aixiv_id} v{result.version}
@@ -435,15 +435,15 @@ const Explore = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
+            <div className="space-y-6">
                 {sortedSubmissions.map(renderResultCard)}
-              </div>
+            </div>
             )}
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-8 flex justify-center">
-                <div className="flex items-center space-x-2">
+            <div className="mt-8 flex justify-center">
+              <div className="flex items-center space-x-2">
                   <button 
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}

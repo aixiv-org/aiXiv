@@ -429,31 +429,35 @@ const Home = () => {
                       <div className={`w-2 h-12 rounded ${
                         submission.type === 'proposal' ? 'bg-blue-500' : 'bg-green-500'
                       }`}></div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">
-                            {submission.title}
-                          </h3>
-                          {submission.isNew && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 animate-pulse">
-                              New
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start space-x-2 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                              {submission.title}
+                            </h3>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            {submission.isNew && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 animate-pulse">
+                                New
+                              </span>
+                            )}
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                              submission.type === 'proposal' 
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            }`}>
+                              {submission.type.toUpperCase()}
                             </span>
-                          )}
-                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            submission.type === 'proposal' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          }`}>
-                            {submission.type.toUpperCase()}
-                          </span>
+                          </div>
                         </div>
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
                           by {submission.author} • {submission.timestamp}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right ml-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    <div className="flex-shrink-0 ml-4">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
                         submission.status?.toLowerCase() === 'published' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           : submission.status?.toLowerCase() === 'under review'
