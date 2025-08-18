@@ -18,7 +18,7 @@ const WorkspaceSubmissions = () => {
     const fetchSubmissions = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions`);
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions?user_id=${user?.id}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch submissions: ${response.status}`);
@@ -104,7 +104,7 @@ const WorkspaceSubmissions = () => {
 
       if (response.ok) {
         // Refresh submissions list
-        const refreshResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions`);
+        const refreshResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions?user_id=${user?.id}`);
         if (refreshResponse.ok) {
           const newData = await refreshResponse.json();
           setSubmissions(newData);

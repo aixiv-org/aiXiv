@@ -19,7 +19,7 @@ const SubmissionDetail = () => {
       setError(null);
       
       // Fetch all submissions to find the one with matching aixiv_id and all its versions
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions/public?skip=0&limit=1000`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

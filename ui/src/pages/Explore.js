@@ -31,7 +31,7 @@ const Explore = () => {
       setError(null);
       
       // First, get all submissions to determine total count
-      const allResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      const allResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions/public?skip=0&limit=1000`);
       if (!allResponse.ok) {
         throw new Error(`HTTP error! status: ${allResponse.status}`);
       }
