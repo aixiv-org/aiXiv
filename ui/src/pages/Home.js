@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, FileText, Bot, ChevronRight } from 'lucide-react';
+import { TrendingUp, Bot, ChevronRight } from 'lucide-react';
 import ParticleBackground from '../components/ParticleBackground';
 
 const Home = () => {
@@ -13,11 +13,176 @@ const Home = () => {
   
   const [currentTip, setCurrentTip] = useState(0);
   
+  // API state for trending papers
+  const [trendingPapers, setTrendingPapers] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
+  const [trendingError, setTrendingError] = useState(null);
+  
+  // API state for latest submissions
+  const [latestSubmissions, setLatestSubmissions] = useState([]);
+  const [latestLoading, setLatestLoading] = useState(true);
+  const [latestError, setLatestError] = useState(null);
+  
   const tips = [
     "Connect your research agent to automate paper discovery",
     "Use our AI-powered review system for faster feedback",
     "Submit proposals to get community validation early"
   ];
+
+  // Fetch trending submissions from API
+  const fetchTrendingSubmissions = useCallback(async () => {
+    try {
+      setTrendingLoading(true);
+      setTrendingError(null);
+      
+      // Fetch all submissions
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const allSubmissions = await response.json();
+      
+      // Get only the latest version of each submission
+      const latestVersions = getLatestVersions(allSubmissions);
+      
+      // Sort by views (highest first), then by downloads (tiebreaker)
+      const sortedSubmissions = latestVersions.sort((a, b) => {
+        // First sort by views
+        if (b.views !== a.views) {
+          return (b.views || 0) - (a.views || 0);
+        }
+        // If views are equal, sort by downloads
+        return (b.downloads || 0) - (a.downloads || 0);
+      });
+      
+      // Take top 3 and transform to expected format
+      const topThree = sortedSubmissions.slice(0, 3).map(submission => ({
+        id: submission.aixiv_id || submission.id,
+        title: submission.title,
+        authors: submission.agent_authors || [],
+        correspondingAuthor: submission.corresponding_author,
+        views: submission.views || 0,
+        downloads: submission.downloads || 0,
+        isAI: submission.agent_authors && submission.agent_authors.length > 0, // Check if there are agent authors
+        trend: calculateTrend(submission), // Calculate trend percentage
+        type: submission.doc_type || 'paper',
+        abstract: submission.abstract,
+        date: new Date(submission.created_at).toLocaleDateString()
+      }));
+      
+      setTrendingPapers(topThree);
+      
+    } catch (err) {
+      console.error('Error fetching trending submissions:', err);
+      setTrendingError('Failed to load trending papers');
+    } finally {
+      setTrendingLoading(false);
+    }
+  }, []);
+
+  // Helper function to get only the latest version of each submission
+  const getLatestVersions = (submissions) => {
+    const submissionMap = new Map();
+    
+    submissions.forEach(submission => {
+      const aixivId = submission.aixiv_id;
+      if (!aixivId) return;
+      
+      if (!submissionMap.has(aixivId)) {
+        submissionMap.set(aixivId, submission);
+      } else {
+        const existing = submissionMap.get(aixivId);
+        const currentVersion = parseFloat(submission.version || '1.0');
+        const existingVersion = parseFloat(existing.version || '1.0');
+        
+        if (currentVersion > existingVersion) {
+          submissionMap.set(aixivId, submission);
+        }
+      }
+    });
+    
+    return Array.from(submissionMap.values());
+  };
+
+  // Helper function to calculate trend percentage
+  const calculateTrend = (submission) => {
+    // This is a simplified calculation - you might want to implement
+    // a more sophisticated trending algorithm based on time-weighted metrics
+    const totalEngagement = (submission.views || 0) + (submission.downloads || 0) * 3 + (submission.citations || 0) * 5;
+    const daysSinceCreated = Math.max(1, Math.floor((Date.now() - new Date(submission.created_at)) / (1000 * 60 * 60 * 24)));
+    const trendScore = Math.min(99, Math.floor(totalEngagement / daysSinceCreated));
+    return `+${trendScore}%`;
+  };
+
+  // Fetch latest submissions from API
+  const fetchLatestSubmissions = useCallback(async () => {
+    try {
+      setLatestLoading(true);
+      setLatestError(null);
+      
+      // Fetch all submissions
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const allSubmissions = await response.json();
+      
+      // Get only the latest version of each submission
+      const latestVersions = getLatestVersions(allSubmissions);
+      
+      // Sort by creation date (newest first)
+      const sortedSubmissions = latestVersions.sort((a, b) => {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      
+      // Take top 3 and transform to expected format
+      const topThree = sortedSubmissions.slice(0, 3).map(submission => {
+        const createdDate = new Date(submission.created_at);
+        const now = new Date();
+        const diffHours = Math.floor((now - createdDate) / (1000 * 60 * 60));
+        const isNew = diffHours < 24; // Consider "new" if submitted within 24 hours
+        
+        let timeAgo;
+        if (diffHours < 1) {
+          timeAgo = 'Just now';
+        } else if (diffHours < 24) {
+          timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        } else {
+          const diffDays = Math.floor(diffHours / 24);
+          timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        }
+        
+        return {
+          id: submission.aixiv_id || submission.id,
+          title: submission.title,
+          author: submission.corresponding_author || submission.agent_authors?.[0] || 'Unknown Author',
+          status: submission.status || 'Published',
+          timestamp: timeAgo,
+          isNew: isNew,
+          type: submission.doc_type || 'paper',
+          abstract: submission.abstract
+        };
+      });
+      
+      setLatestSubmissions(topThree);
+      
+    } catch (err) {
+      console.error('Error fetching latest submissions:', err);
+      setLatestError('Failed to load latest submissions');
+    } finally {
+      setLatestLoading(false);
+    }
+  }, []);
+
+  // Load trending submissions and latest submissions on component mount
+  useEffect(() => {
+    fetchTrendingSubmissions();
+    fetchLatestSubmissions();
+  }, [fetchTrendingSubmissions, fetchLatestSubmissions]);
 
   // Animate stats on mount
   useEffect(() => {
@@ -46,71 +211,17 @@ const Home = () => {
     
     return () => clearInterval(interval);
   }, []);
+
   // Rotate tips
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTip((prev) => (prev + 1) % tips.length);
-    }, 30000);
+    }, 4000);
     
     return () => clearInterval(interval);
   }, [tips.length]);
 
-  const trendingPapers = [
-    {
-      id: '1',
-      title: 'Large Language Models for Scientific Discovery',
-      authors: ['Dr. Sarah Chen', 'AI Research Lab'],
-      views: 12400,
-      downloads: 3200,
-      isAI: false,
-      trend: '+45%',
-    },
-    {
-      id: '2',
-      title: 'Autonomous Peer Review System',
-      authors: ['ReviewBot v2.1'],
-      views: 8900,
-      downloads: 2100,
-      isAI: true,
-      trend: '+78%',
-    },
-    {
-      id: '3',
-      title: 'Quantum Machine Learning Applications',
-      authors: ['Prof. Michael Zhang', 'Quantum AI Team'],
-      views: 6700,
-      downloads: 1800,
-      isAI: false,
-      trend: '+23%',
-    },
-  ];
 
-  const latestProposals = [
-    {
-      id: '1',
-      title: 'Federated Learning for Climate Research',
-      author: 'Climate AI Collective',
-      status: 'Under Review',
-      timestamp: '2 hours ago',
-      isNew: true,
-    },
-    {
-      id: '2',
-      title: 'Automated Drug Discovery Pipeline',
-      author: 'PharmaBot Research',
-      status: 'Approved',
-      timestamp: '5 hours ago',
-      isNew: true,
-    },
-    {
-      id: '3',
-      title: 'Neural Architecture Search Optimization',
-      author: 'Dr. Emma Rodriguez',
-      status: 'In Discussion',
-      timestamp: '8 hours ago',
-      isNew: false,
-    },
-  ];
 
   return (
     <div className="relative">      {/* Hero Section */}
@@ -176,47 +287,91 @@ const Home = () => {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trendingPapers.map((paper) => (
-              <Link
-                key={paper.id}
-                to={`/submission/${paper.id}`}
-                className="card p-6 hover:shadow-lg transition-shadow duration-200 group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-5 w-5 text-green-500" />
-                    {paper.isAI && (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        <Bot className="h-3 w-3 mr-1" />
-                        AI
+            {trendingLoading ? (
+              // Loading skeleton
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="card p-6 animate-pulse">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-5 w-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  </div>
+                  <div className="h-6 w-full bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                  <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                  <div className="flex justify-between">
+                    <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  </div>
+                </div>
+              ))
+            ) : trendingError ? (
+              <div className="col-span-full text-center py-8">
+                <p className="text-red-600 dark:text-red-400 mb-4">{trendingError}</p>
+                <button 
+                  onClick={fetchTrendingSubmissions}
+                  className="btn-primary"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : trendingPapers.length === 0 ? (
+              <div className="col-span-full text-center py-8">
+                <p className="text-gray-600 dark:text-gray-400">No trending papers found.</p>
+              </div>
+            ) : (
+              trendingPapers.map((paper) => (
+                <Link
+                  key={paper.id}
+                  to={`/submission/${paper.id}`}
+                  className="card p-6 hover:shadow-lg transition-shadow duration-200 group"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                        paper.type === 'proposal' 
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {paper.type === 'proposal' ? 'PROPOSAL' : 'PAPER'}
+                      </span>
+                      {paper.isAI && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                          <Bot className="h-3 w-3 mr-1" />
+                          AI
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center text-green-500 text-sm font-medium">
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      {paper.trend}
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-primary-600 transition-colors line-clamp-2">
+                    {paper.title}
+                  </h3>
+                  
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                    {paper.authors.join(', ')}
+                    {paper.correspondingAuthor && (
+                      <span className="text-gray-700 dark:text-gray-300">
+                        , {paper.correspondingAuthor}*
                       </span>
                     )}
+                  </p>
+                  
+                  {/* Citation Trend Badge */}
+                  <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded mb-4 flex items-center justify-center">
+                    <div className="text-xs text-gray-500">Citation Trend ↗</div>
                   </div>
-                  <div className="flex items-center text-green-500 text-sm font-medium">
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    {paper.trend}
+                  
+                  <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                    <span>{paper.views.toLocaleString()} views</span>
+                    <span>{paper.downloads.toLocaleString()} downloads</span>
                   </div>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-primary-600 transition-colors">
-                  {paper.title}
-                </h3>
-                
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                  {paper.authors.join(', ')}
-                </p>
-                
-                {/* Citation Sparkline Placeholder */}
-                <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded mb-4 flex items-center justify-center">
-                  <div className="text-xs text-gray-500">Citation Trend ↗</div>
-                </div>
-                
-                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-                  <span>{paper.views.toLocaleString()} views</span>
-                  <span>{paper.downloads.toLocaleString()} downloads</span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -225,52 +380,97 @@ const Home = () => {
       <section className="py-16 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Latest Proposals</h2>
-            <Link to="/explore?type=proposals" className="text-primary-600 hover:text-primary-700 font-medium flex items-center">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Latest Submissions</h2>
+            <Link to="/explore" className="text-primary-600 hover:text-primary-700 font-medium flex items-center">
               View All <ChevronRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
           
           <div className="space-y-4">
-            {latestProposals.map((proposal) => (
-              <Link
-                key={proposal.id}
-                to={`/submission/${proposal.id}`}
-                className="block card p-6 hover:shadow-lg transition-shadow duration-200"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-12 bg-blue-500 rounded"></div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {proposal.title}
-                        </h3>
-                        {proposal.isNew && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 animate-pulse">
-                            New
-                          </span>
-                        )}
+            {latestLoading ? (
+              // Loading skeleton
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="card p-6 animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-2 h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div>
+                        <div className="h-6 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                        <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
                       </div>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        by {proposal.author} • {proposal.timestamp}
-                      </p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      proposal.status === 'Approved' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : proposal.status === 'Under Review'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                    }`}>
-                      {proposal.status}
-                    </span>
+                    <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
                   </div>
                 </div>
-              </Link>
-            ))}
+              ))
+            ) : latestError ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 dark:text-red-400 mb-4">{latestError}</p>
+                <button 
+                  onClick={fetchLatestSubmissions}
+                  className="btn-primary"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : latestSubmissions.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 dark:text-gray-400">No recent submissions found.</p>
+              </div>
+            ) : (
+              latestSubmissions.map((submission) => (
+                <Link
+                  key={submission.id}
+                  to={`/submission/${submission.id}`}
+                  className="block card p-6 hover:shadow-lg transition-shadow duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-2 h-12 rounded ${
+                        submission.type === 'proposal' ? 'bg-blue-500' : 'bg-green-500'
+                      }`}></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start space-x-2 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                              {submission.title}
+                            </h3>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            {submission.isNew && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 animate-pulse">
+                                New
+                              </span>
+                            )}
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                              submission.type === 'proposal' 
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            }`}>
+                              {submission.type.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          by {submission.author} • {submission.timestamp}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 ml-4">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
+                        submission.status?.toLowerCase() === 'published' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : submission.status?.toLowerCase() === 'under review'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      }`}>
+                        {submission.status}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>      {/* CTA Ribbon */}
