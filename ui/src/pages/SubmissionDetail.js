@@ -1,47 +1,143 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, Share, Bookmark, Watch, Edit, MessageSquare, BarChart3, FileText, Bot, Eye, Heart, Star } from 'lucide-react';
 
 const SubmissionDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // This is the aixiv_id from the URL
   const [activeTab, setActiveTab] = useState('content');
   
-  console.log('Submission ID:', id); // Using the id variable
-
-  // Mock data - in real app this would come from API
-  const submission = {
-    id: 'SUB-2024-001',
-    title: 'Attention Is All You Need: Transformer Architecture for Natural Language Processing',
-    authors: [
-      { name: 'Ashish Vaswani', affiliation: 'Google Brain', orcid: '0000-0000-0000-0001' },
-      { name: 'Noam Shazeer', affiliation: 'Google Brain', orcid: '0000-0000-0000-0002' },
-      { name: 'Niki Parmar', affiliation: 'Google Research', orcid: '0000-0000-0000-0003' },
-    ],
-    agents: [
-      { name: 'ResearchBot v3.2', role: 'Co-author', contribution: 'Literature review and analysis' }
-    ],
-    type: 'paper',
-    status: 'published',
-    publishedDate: '2024-01-15',
-    abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.',
-    doi: '10.48550/arXiv.2024.12345',
-    categories: ['Computer Science', 'Machine Learning', 'Neural Networks'],
-    keywords: ['attention mechanism', 'transformer', 'neural networks', 'natural language processing'],
-    metrics: {
-      views: 15420,
-      downloads: 3280,
-      citations: 145,
-      comments: 23,
-      bookmarks: 892,
-    },
-    versions: [
-      { version: '1.2', date: '2024-01-15', changes: 'Final published version' },
-      { version: '1.1', date: '2024-01-10', changes: 'Added experimental results section' },
-      { version: '1.0', date: '2024-01-05', changes: 'Initial submission' },
-    ],
-    isBookmarked: false,
-    isWatching: true,
+  // API state
+  const [submission, setSubmission] = useState(null);
+  const [allVersions, setAllVersions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Fetch submission data from API
+  const fetchSubmissionData = async (aixivId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch all submissions to find the one with matching aixiv_id and all its versions
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const allSubmissions = await response.json();
+      
+      // Find all versions of the submission with this aixiv_id
+      const versions = allSubmissions.filter(sub => sub.aixiv_id === aixivId);
+      
+      if (versions.length === 0) {
+        throw new Error('Submission not found');
+      }
+      
+      // Sort versions by version number (descending) to get the latest first
+      const sortedVersions = versions.sort((a, b) => {
+        const versionA = parseFloat(a.version || '1.0');
+        const versionB = parseFloat(b.version || '1.0');
+        return versionB - versionA;
+      });
+      
+      const latestSubmission = sortedVersions[0];
+      
+      // Transform the data to match the expected format
+      const transformedSubmission = {
+        id: latestSubmission.aixiv_id,
+        title: latestSubmission.title,
+        authors: latestSubmission.agent_authors?.map(author => ({
+          name: author,
+          affiliation: '', // Not available in current schema
+          orcid: '' // Not available in current schema
+        })) || [],
+        agents: [], // Could be determined based on your data
+        type: latestSubmission.doc_type || 'paper',
+        status: latestSubmission.status || 'published',
+        publishedDate: new Date(latestSubmission.created_at).toLocaleDateString(),
+        abstract: latestSubmission.abstract || 'No abstract available',
+        doi: latestSubmission.doi || null,
+        categories: Array.isArray(latestSubmission.category) ? latestSubmission.category : [latestSubmission.category || 'General'],
+        keywords: latestSubmission.keywords || [],
+        metrics: {
+          views: latestSubmission.views || 0,
+          downloads: latestSubmission.downloads || 0,
+          citations: latestSubmission.citations || 0,
+          comments: latestSubmission.comments || 0,
+          bookmarks: 0, // Not available in current schema
+        },
+        versions: sortedVersions.map(version => ({
+          version: version.version || '1.0',
+          date: new Date(version.created_at).toLocaleDateString(),
+          changes: version.version === latestSubmission.version ? 'Current version' : 'Previous version',
+          s3_url: version.s3_url
+        })),
+        isBookmarked: false,
+        isWatching: false,
+        correspondingAuthor: latestSubmission.corresponding_author,
+        license: latestSubmission.license,
+        s3_url: latestSubmission.s3_url,
+        currentVersion: latestSubmission.version || '1.0'
+      };
+      
+      setSubmission(transformedSubmission);
+      setAllVersions(sortedVersions);
+      
+    } catch (err) {
+      console.error('Error fetching submission:', err);
+      setError(err.message || 'Failed to load submission. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Load data when component mounts or id changes
+  useEffect(() => {
+    if (id) {
+      fetchSubmissionData(id);
+    }
+  }, [id]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading submission...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <button 
+            onClick={() => fetchSubmissionData(id)}
+            className="btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No submission found
+  if (!submission) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400">Submission not found</p>
+        </div>
+      </div>
+    );
+  }
 
   const reviews = [
     {
@@ -132,28 +228,8 @@ const SubmissionDetail = () => {
   const renderContent = () => (
     <div className="prose dark:prose-invert max-w-none">
       <h2>Abstract</h2>
-      <p>{submission.abstract}</p>
-      
-      <h2>1. Introduction</h2>
-      <p>
-        Recurrent neural networks, long short-term memory and gated recurrent neural networks 
-        in particular, have been firmly established as state of the art approaches in sequence 
-        modeling and transduction problems such as language modeling and machine translation.
-      </p>
-      
-      <h2>2. Background</h2>
-      <p>
-        The goal of reducing sequential computation also forms the foundation of the Extended 
-        Neural GPU, ByteNet and ConvS2S, all of which use convolutional neural networks as 
-        basic building block, computing hidden representations in parallel for all input and 
-        output positions.
-      </p>
-      
-      <h2>3. Model Architecture</h2>
-      <p>
-        Most competitive neural sequence transduction models have an encoder-decoder structure. 
-        Here, the encoder maps an input sequence of symbol representations to a sequence of 
-        continuous representations.
+      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+        {submission.abstract || 'No abstract available for this submission.'}
       </p>
       
       <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg my-8">
@@ -161,6 +237,16 @@ const SubmissionDetail = () => {
           <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
           <p>Full PDF content would be displayed here</p>
           <p className="text-sm">Interactive PDF viewer with highlighting and comments</p>
+          {submission.s3_url && (
+            <a 
+              href={submission.s3_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-4 btn-primary"
+            >
+              View PDF
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -168,13 +254,13 @@ const SubmissionDetail = () => {
 
   const renderVersions = () => (
     <div className="space-y-4">
-      {submission.versions.map((version, index) => (
-        <div key={version.version} className="card p-4">
+      {allVersions.map((version, index) => (
+        <div key={version.version || index} className="card p-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center space-x-3">
                 <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Version {version.version}
+                  Version {version.version || '1.0'}
                 </span>
                 {index === 0 && (
                   <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-sm">
@@ -183,18 +269,23 @@ const SubmissionDetail = () => {
                 )}
               </div>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                {version.date} • {version.changes}
+                {new Date(version.created_at).toLocaleDateString()} • 
+                {index === 0 ? ' Current version' : ' Previous version'}
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              {index > 0 && (
-                <button className="btn-secondary text-sm">
-                  View Diff
-                </button>
+              {version.s3_url ? (
+                <a 
+                  href={version.s3_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary text-sm"
+                >
+                  Download
+                </a>
+              ) : (
+                <span className="text-gray-400 text-sm">No file available</span>
               )}
-              <button className="btn-primary text-sm">
-                Download
-              </button>
             </div>
           </div>
         </div>
@@ -204,23 +295,12 @@ const SubmissionDetail = () => {
 
   const renderReviews = () => (
     <div className="space-y-6">
-      {/* Review Summary */}
-      <div className="card p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Review Summary
-        </h3>
-        <div className="grid grid-cols-4 gap-6">
-          {['novelty', 'clarity', 'significance', 'technical'].map((criterion) => (
-            <div key={criterion} className="text-center">
-              <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                {(reviews.reduce((sum, review) => sum + review.scores[criterion], 0) / reviews.length).toFixed(1)}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                {criterion}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Add Review Button */}
+      <div className="flex justify-end">
+        <button className="btn-primary flex items-center space-x-2">
+          <Edit className="h-4 w-4" />
+          <span>Add Review</span>
+        </button>
       </div>
 
       {/* Individual Reviews */}
@@ -246,20 +326,6 @@ const SubmissionDetail = () => {
                 <span>{review.helpful}</span>
               </div>
             </div>
-          </div>
-
-          {/* Scores */}
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            {Object.entries(review.scores).map(([criterion, score]) => (
-              <div key={criterion} className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {score}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                  {criterion}
-                </div>
-              </div>
-            ))}
           </div>
 
           <div className="space-y-4">
@@ -410,10 +476,22 @@ const SubmissionDetail = () => {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button className="btn-secondary flex items-center space-x-2">
-                    <Download className="h-4 w-4" />
-                    <span>PDF</span>
-                  </button>
+                  {submission.s3_url ? (
+                    <a 
+                      href={submission.s3_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary flex items-center space-x-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>PDF</span>
+                    </a>
+                  ) : (
+                    <button disabled className="btn-secondary flex items-center space-x-2 opacity-50 cursor-not-allowed">
+                      <Download className="h-4 w-4" />
+                      <span>PDF</span>
+                    </button>
+                  )}
                   <button className="btn-secondary">
                     <Share className="h-4 w-4" />
                   </button>
@@ -445,11 +523,23 @@ const SubmissionDetail = () => {
                       <span className="text-gray-700 dark:text-gray-300 hover:text-primary-600 cursor-pointer">
                         {author.name}
                       </span>
-                      <span className="text-gray-500 dark:text-gray-400 text-sm">
-                        {author.affiliation}
-                      </span>
+                      {author.affiliation && (
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">
+                          {author.affiliation}
+                        </span>
+                      )}
                     </div>
                   ))}
+                  {submission.correspondingAuthor && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-700 dark:text-gray-300">
+                        <span className="text-red-500">*</span> {submission.correspondingAuthor}
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">
+                        (Corresponding Author)
+                      </span>
+                    </div>
+                  )}
                   {submission.agents.map((agent, index) => (
                     <div key={index} className="flex items-center space-x-2">
                       <Bot className="h-4 w-4 text-purple-600" />
@@ -528,7 +618,7 @@ const SubmissionDetail = () => {
                 </div>                <div>
                   <span className="text-gray-500 dark:text-gray-400">DOI:</span>
                   <button className="ml-2 text-primary-600 dark:text-primary-400 hover:underline">
-                    {submission.doi}
+                    {submission.id}
                   </button>
                 </div>
                 <div>
@@ -551,6 +641,18 @@ const SubmissionDetail = () => {
                     ))}
                   </div>
                 </div>
+                {submission.license && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">License:</span>
+                    <span className="ml-2 text-gray-900 dark:text-white">{submission.license}</span>
+                  </div>
+                )}
+                {submission.currentVersion && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Version:</span>
+                    <span className="ml-2 text-gray-900 dark:text-white">v{submission.currentVersion}</span>
+                  </div>
+                )}
               </div>
             </div>
 
