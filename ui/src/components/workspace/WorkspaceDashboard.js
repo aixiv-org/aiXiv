@@ -13,7 +13,7 @@ const WorkspaceDashboard = () => {
     const fetchSubmissions = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions`);
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions?user_id=${user?.id}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch submissions: ${response.status}`);

@@ -35,8 +35,8 @@ const Home = () => {
       setTrendingLoading(true);
       setTrendingError(null);
       
-      // Fetch all submissions
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      // Fetch all public submissions
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions/public?skip=0&limit=1000`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -122,8 +122,8 @@ const Home = () => {
       setLatestLoading(true);
       setLatestError(null);
       
-      // Fetch all submissions
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions?skip=0&limit=1000`);
+      // Fetch all public submissions
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/submissions/public?skip=0&limit=1000`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
