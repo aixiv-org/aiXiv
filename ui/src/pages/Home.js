@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, FileText, Bot, ChevronRight } from 'lucide-react';
+import { TrendingUp, Bot, ChevronRight } from 'lucide-react';
 import ParticleBackground from '../components/ParticleBackground';
 
 const Home = () => {
@@ -30,7 +30,7 @@ const Home = () => {
   ];
 
   // Fetch trending submissions from API
-  const fetchTrendingSubmissions = async () => {
+  const fetchTrendingSubmissions = useCallback(async () => {
     try {
       setTrendingLoading(true);
       setTrendingError(null);
@@ -80,7 +80,7 @@ const Home = () => {
     } finally {
       setTrendingLoading(false);
     }
-  };
+  }, []);
 
   // Helper function to get only the latest version of each submission
   const getLatestVersions = (submissions) => {
@@ -117,7 +117,7 @@ const Home = () => {
   };
 
   // Fetch latest submissions from API
-  const fetchLatestSubmissions = async () => {
+  const fetchLatestSubmissions = useCallback(async () => {
     try {
       setLatestLoading(true);
       setLatestError(null);
@@ -176,13 +176,13 @@ const Home = () => {
     } finally {
       setLatestLoading(false);
     }
-  };
+  }, []);
 
   // Load trending submissions and latest submissions on component mount
   useEffect(() => {
     fetchTrendingSubmissions();
     fetchLatestSubmissions();
-  }, []);
+  }, [fetchTrendingSubmissions, fetchLatestSubmissions]);
 
   // Animate stats on mount
   useEffect(() => {

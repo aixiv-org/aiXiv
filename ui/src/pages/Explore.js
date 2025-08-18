@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search, Filter, BookmarkPlus, Eye, Download, MessageCircle, Star, ChevronDown, Bot } from 'lucide-react';
 import SearchFilters from '../components/SearchFilters';
@@ -25,7 +25,7 @@ const Explore = () => {
   const currentType = searchParams.get('type') || 'all';
 
   // Fetch submissions from API
-  const fetchSubmissions = async (page = 1, limit = itemsPerPage) => {
+  const fetchSubmissions = useCallback(async (page = 1, limit = itemsPerPage) => {
     try {
       setLoading(true);
       setError(null);
@@ -80,7 +80,7 @@ const Explore = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [itemsPerPage]);
 
   // Helper function to get only the latest version of each submission
   const getLatestVersions = (submissions) => {
@@ -141,31 +141,7 @@ const Explore = () => {
     }
   };
 
-  // Filter submissions based on search query and type
-  const filterSubmissions = (submissions) => {
-    let filtered = submissions;
-    
-    // Filter by search query
-    if (currentQuery) {
-      filtered = filtered.filter(submission =>
-        submission.title.toLowerCase().includes(currentQuery.toLowerCase()) ||
-        submission.abstract.toLowerCase().includes(currentQuery.toLowerCase()) ||
-        submission.authors.some(author => 
-          author.toLowerCase().includes(currentQuery.toLowerCase())
-        ) ||
-        (submission.keywords && submission.keywords.some(keyword =>
-          keyword.toLowerCase().includes(currentQuery.toLowerCase())
-        ))
-      );
-    }
-    
-    // Filter by type
-    if (currentType !== 'all') {
-      filtered = filtered.filter(submission => submission.type === currentType);
-    }
-    
-    return filtered;
-  };
+
 
   // Handle pagination
   const handlePageChange = (newPage) => {
@@ -200,7 +176,7 @@ const Explore = () => {
     const page = parseInt(searchParams.get('page')) || 1;
     setCurrentPage(page);
     fetchSubmissions(page, itemsPerPage);
-  }, [searchParams]);
+  }, [searchParams, fetchSubmissions, itemsPerPage]);
 
   // Apply sorting to submissions (filtering will be done on the full dataset later)
   const sortedSubmissions = sortSubmissions(submissions, sortBy);
