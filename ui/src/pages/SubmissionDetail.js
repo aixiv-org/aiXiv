@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, Share, Bookmark, Watch, Edit, MessageSquare, BarChart3, FileText, Bot, Eye, Heart, Star } from 'lucide-react';
+import AddReviewModal from '../components/AddReviewModal';
 
 const SubmissionDetail = () => {
   const { id } = useParams(); // This is the aixiv_id from the URL
@@ -11,6 +12,12 @@ const SubmissionDetail = () => {
   const [allVersions, setAllVersions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Review modal state
+  const [showAddReviewModal, setShowAddReviewModal] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState(null);
   
   // Fetch submission data from API
   const fetchSubmissionData = async (aixivId) => {
@@ -60,7 +67,7 @@ const SubmissionDetail = () => {
         doi: latestSubmission.doi || null,
         categories: Array.isArray(latestSubmission.category) ? latestSubmission.category : [latestSubmission.category || 'General'],
         keywords: latestSubmission.keywords || [],
-        metrics: {
+    metrics: {
           views: latestSubmission.views || 0,
           downloads: latestSubmission.downloads || 0,
           citations: latestSubmission.citations || 0,
@@ -73,7 +80,7 @@ const SubmissionDetail = () => {
           changes: version.version === latestSubmission.version ? 'Current version' : 'Previous version',
           s3_url: version.s3_url
         })),
-        isBookmarked: false,
+    isBookmarked: false,
         isWatching: false,
         correspondingAuthor: latestSubmission.corresponding_author,
         license: latestSubmission.license,
@@ -92,12 +99,106 @@ const SubmissionDetail = () => {
     }
   };
 
+  // Fetch reviews from API
+  const fetchReviews = useCallback(async () => {
+    if (!submission) return;
+    
+    try {
+      setReviewsLoading(true);
+      setReviewsError(null);
+      
+      const reviewPayload = {
+        aixiv_id: submission.id,
+        version: submission.currentVersion,
+        start_date: '2024-01-01T00:00:00',
+        end_date: '2025-12-31T23:59:59'
+      };
+      
+      console.log('Fetching reviews with payload:', reviewPayload);
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/get-review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewPayload)
+      });
+      
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
+      if (!response.ok) {
+        console.error('Response not ok:', response.status, responseText);
+        
+        // Handle 404 specifically (no reviews found)
+        if (response.status === 404) {
+          setReviews([]);
+          return;
+        }
+        
+        throw new Error(`Failed to fetch reviews: ${response.status} - ${responseText}`);
+      }
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        throw new Error('Invalid response format from server');
+      }
+      
+      console.log('Parsed result:', result);
+      
+      if (result.code === 200 && result.review_list) {
+        // Sort reviews by create_time (most recent first)
+        const sortedReviews = result.review_list.sort((a, b) => 
+          new Date(b.create_time) - new Date(a.create_time)
+        );
+        
+        // Transform API data to expected format
+        const transformedReviews = sortedReviews.map((review, index) => ({
+          id: `REV-${index + 1}`,
+          reviewer: 'Anonymous Reviewer',
+          date: new Date(review.create_time).toLocaleDateString(),
+          summary: review.review_results.text,
+          strengths: [], // Not provided by API
+          weaknesses: [], // Not provided by API
+          recommendation: 'Human Review', // Default since not provided
+          helpful: 0, // Default since not provided
+          createTime: review.create_time, // Keep original timestamp for future sorting if needed
+        }));
+        setReviews(transformedReviews);
+      } else {
+        console.log('No reviews found or unexpected response format');
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error('Error fetching reviews:', err);
+      setReviewsError(`Failed to load reviews: ${err.message}`);
+      setReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [submission]);
+
+  // Handle review added
+  const handleReviewAdded = () => {
+    fetchReviews(); // Refresh reviews after adding a new one
+  };
+
   // Load data when component mounts or id changes
   useEffect(() => {
     if (id) {
       fetchSubmissionData(id);
     }
   }, [id]);
+
+  // Fetch reviews when submission is loaded
+  useEffect(() => {
+    if (submission) {
+      fetchReviews();
+    }
+  }, [submission, fetchReviews]);
 
   // Loading state
   if (loading) {
@@ -138,46 +239,6 @@ const SubmissionDetail = () => {
       </div>
     );
   }
-
-  const reviews = [
-    {
-      id: 'REV-001',
-      reviewer: 'Anonymous Reviewer 1',
-      date: '2024-01-12',
-      scores: { novelty: 4.5, clarity: 4.0, significance: 4.5, technical: 4.0 },
-      summary: 'This paper presents a novel and significant contribution to the field of neural machine translation. The proposed Transformer architecture is elegant and achieves state-of-the-art results.',
-      strengths: [
-        'Novel attention-only architecture',
-        'Strong empirical results',
-        'Clear presentation and well-written',
-        'Comprehensive experiments'
-      ],
-      weaknesses: [
-        'Limited theoretical analysis',
-        'Computational complexity could be better discussed'
-      ],
-      recommendation: 'Accept',
-      helpful: 15,
-    },
-    {
-      id: 'REV-002',
-      reviewer: 'Anonymous Reviewer 2',
-      date: '2024-01-13',
-      scores: { novelty: 4.0, clarity: 4.5, significance: 4.0, technical: 4.0 },
-      summary: 'The paper introduces an interesting architecture that removes recurrence entirely. The results are promising and the work is technically sound.',
-      strengths: [
-        'Removes recurrence for faster training',
-        'Good experimental validation',
-        'Impact on the field'
-      ],
-      weaknesses: [
-        'Some notation could be clearer',
-        'More ablation studies would strengthen the work'
-      ],
-      recommendation: 'Accept',
-      helpful: 12,
-    }
-  ];
 
   const discussions = [
     {
@@ -297,14 +358,45 @@ const SubmissionDetail = () => {
     <div className="space-y-6">
       {/* Add Review Button */}
       <div className="flex justify-end">
-        <button className="btn-primary flex items-center space-x-2">
+        <button 
+          onClick={() => setShowAddReviewModal(true)}
+          className="btn-primary flex items-center space-x-2"
+        >
           <Edit className="h-4 w-4" />
           <span>Add Review</span>
         </button>
-      </div>
+              </div>
+
+      {/* Reviews Loading State */}
+      {reviewsLoading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading reviews...</p>
+              </div>
+      )}
+
+      {/* Reviews Error State */}
+      {reviewsError && (
+        <div className="text-center py-8">
+          <p className="text-red-600 dark:text-red-400 mb-4">{reviewsError}</p>
+          <button 
+            onClick={fetchReviews}
+            className="btn-primary"
+          >
+            Try Again
+          </button>
+            </div>
+      )}
+
+      {/* No Reviews State */}
+      {!reviewsLoading && !reviewsError && reviews.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-600 dark:text-gray-400">No reviews yet. Be the first to add a review!</p>
+        </div>
+      )}
 
       {/* Individual Reviews */}
-      {reviews.map((review) => (
+      {!reviewsLoading && !reviewsError && reviews.map((review) => (
         <div key={review.id} className="card p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -314,26 +406,25 @@ const SubmissionDetail = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">{review.date}</p>
             </div>
             <div className="flex items-center space-x-4">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                review.recommendation === 'Accept' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-              }`}>
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                 {review.recommendation}
               </span>
+              {review.helpful > 0 && (
               <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
                 <Heart className="h-4 w-4" />
                 <span>{review.helpful}</span>
               </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <h5 className="font-medium text-gray-900 dark:text-white mb-2">Summary</h5>
+              <h5 className="font-medium text-gray-900 dark:text-white mb-2">Review</h5>
               <p className="text-gray-700 dark:text-gray-300 text-sm">{review.summary}</p>
             </div>
 
+            {review.strengths.length > 0 && (
             <div>
               <h5 className="font-medium text-gray-900 dark:text-white mb-2">Strengths</h5>
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
@@ -342,7 +433,9 @@ const SubmissionDetail = () => {
                 ))}
               </ul>
             </div>
+            )}
 
+            {review.weaknesses.length > 0 && (
             <div>
               <h5 className="font-medium text-gray-900 dark:text-white mb-2">Weaknesses</h5>
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
@@ -351,6 +444,7 @@ const SubmissionDetail = () => {
                 ))}
               </ul>
             </div>
+            )}
           </div>
         </div>
       ))}
@@ -488,9 +582,9 @@ const SubmissionDetail = () => {
                     </a>
                   ) : (
                     <button disabled className="btn-secondary flex items-center space-x-2 opacity-50 cursor-not-allowed">
-                      <Download className="h-4 w-4" />
-                      <span>PDF</span>
-                    </button>
+                    <Download className="h-4 w-4" />
+                    <span>PDF</span>
+                  </button>
                   )}
                   <button className="btn-secondary">
                     <Share className="h-4 w-4" />
@@ -524,9 +618,9 @@ const SubmissionDetail = () => {
                         {author.name}
                       </span>
                       {author.affiliation && (
-                        <span className="text-gray-500 dark:text-gray-400 text-sm">
-                          {author.affiliation}
-                        </span>
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">
+                        {author.affiliation}
+                      </span>
                       )}
                     </div>
                   ))}
@@ -701,6 +795,14 @@ const SubmissionDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Review Modal */}
+      <AddReviewModal
+        isOpen={showAddReviewModal}
+        onClose={() => setShowAddReviewModal(false)}
+        submission={submission}
+        onReviewAdded={handleReviewAdded}
+      />
     </div>
   );
 };

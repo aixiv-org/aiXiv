@@ -52,6 +52,49 @@ const WorkspaceSubmissions = () => {
     setShowEditModal(false);
   };
 
+  // Helper function to call review agent API
+  const callReviewAgentAPI = async (submissionData) => {
+    try {
+      const reviewEndpoint = submissionData.doc_type === 'paper' 
+        ? 'http://api-review-agent.aixiv.co/review/paper'
+        : 'http://api-review-agent.aixiv.co/review/proposal';
+
+      const reviewPayload = {
+        file: submissionData.s3_url,
+        aixiv_id: submissionData.aixiv_id,
+        version: submissionData.version,
+        doc_type: submissionData.doc_type,
+        aixiv_url: `https://aixiv.co/submission/${submissionData.aixiv_id}`,
+        doi: submissionData.doi || "",
+        token: "",
+        engine: "",
+        enable_lit_search: true,
+        seed: 0
+      };
+
+      console.log(`Calling review agent API: ${reviewEndpoint}`, reviewPayload);
+
+      const reviewResponse = await fetch(reviewEndpoint, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewPayload),
+      });
+
+      // We don't need to handle the response as per requirements
+      // Just log for debugging purposes
+      console.log(`Review agent API response status: ${reviewResponse.status}`);
+      if (!reviewResponse.ok) {
+        console.warn(`Review agent API call failed with status: ${reviewResponse.status}`);
+      }
+    } catch (error) {
+      console.error('Error calling review agent API:', error);
+      // Don't throw error - this shouldn't block the main submission flow
+    }
+  };
+
   // Handle submit edit
   const handleSubmitEdit = async (updatedData, newFile) => {
     try {
@@ -103,6 +146,17 @@ const WorkspaceSubmissions = () => {
       });
 
       if (response.ok) {
+        const versionData = await response.json();
+        
+        // Call review agent API after successful version creation
+        if (versionData && versionData.aixiv_id) {
+          await callReviewAgentAPI({
+            ...versionData,
+            s3_url: s3Url,
+            doc_type: editingSubmission.doc_type
+          });
+        }
+        
         // Refresh submissions list
         const refreshResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/submissions?user_id=${user?.id}`);
         if (refreshResponse.ok) {
