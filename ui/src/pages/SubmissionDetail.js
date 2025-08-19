@@ -111,7 +111,7 @@ const SubmissionDetail = () => {
         aixiv_id: submission.id,
         version: submission.currentVersion,
         start_date: '2024-01-01T00:00:00',
-        end_date: '2025-12-31T23:59:59'
+        end_date: new Date().toISOString().slice(0, 19) // 获取当前时间并格式化为 YYYY-MM-DDTHH:mm:ss
       };
       
       console.log('Fetching reviews with payload:', reviewPayload);
@@ -160,7 +160,7 @@ const SubmissionDetail = () => {
           id: `REV-${index + 1}`,
           reviewer: 'Anonymous Reviewer',
           date: new Date(review.create_time).toLocaleDateString(),
-          summary: review.review_results.text,
+          summary: JSON.stringify(review.review_results, null, 2), //review.review_results.text,
           strengths: [], // Not provided by API
           weaknesses: [], // Not provided by API
           recommendation: 'Human Review', // Default since not provided
