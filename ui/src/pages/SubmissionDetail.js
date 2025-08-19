@@ -163,7 +163,7 @@ const SubmissionDetail = () => {
           summary: JSON.stringify(review.review_results, null, 2), //review.review_results.text,
           strengths: [], // Not provided by API
           weaknesses: [], // Not provided by API
-          recommendation: 'Human Review', // Default since not provided
+          recommendation: review.reviewer === "Official Agent" ? "Official Agent" : "Human Review", // review.reviewer
           helpful: 0, // Default since not provided
           createTime: review.create_time, // Keep original timestamp for future sorting if needed
         }));
