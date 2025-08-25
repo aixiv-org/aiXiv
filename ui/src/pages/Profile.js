@@ -478,7 +478,7 @@ const Profile = () => {
                         />
                       ) : profileData?.avatar ? (
                         <img
-                          src={`http://localhost:8000${profileData.avatar}`}
+                          src={profileData.avatar}
                           alt={profileData.name}
                           className="w-full h-full object-cover"
                         />
@@ -510,7 +510,7 @@ const Profile = () => {
                   <>
                     {profileData?.avatar ? (
                       <img
-                        src={`http://localhost:8000${profileData.avatar}`}
+                        src={profileData.avatar}
                         alt={profileData.name}
                         className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
                         onError={(e) => {
