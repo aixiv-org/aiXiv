@@ -11,7 +11,6 @@ import {
   Star, 
   Download,
   Edit,
-  Settings,
   Mail,
   Link as LinkIcon,
   Github,
