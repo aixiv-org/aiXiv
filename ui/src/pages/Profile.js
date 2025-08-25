@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import API_ENDPOINTS from '../config/api';
 import { 
   User, 
@@ -29,6 +29,7 @@ import {
 const Profile = () => {
   const { id } = useParams();
   const { getToken, userId: clerkUserId } = useAuth();
+  const { user: clerkUser } = useUser();
   const [activeTab, setActiveTab] = useState('papers');
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState(null);
@@ -52,17 +53,19 @@ const Profile = () => {
   // Or if the profile ID matches the current user ID
   const isOwnProfile = !id || id === 'me' || (profileUserId === clerkUserId) || (!clerkUserId && profileUserId === 'default-user');
   
-  // Default profile structure with stats and badges
+  // Default profile structure with stats and badges - use Clerk user data if available
   const defaultProfileData = useMemo(() => ({
     id: profileUserId,
-    name: 'New User',
+    name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || 'New User',
     title: '',
     affiliation: '',
     location: '',
-    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-    avatar: null,
+    joinDate: clerkUser?.createdAt 
+      ? new Date(clerkUser.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    avatar: clerkUser?.imageUrl || null,
     bio: '',
-    email: '',
+    email: clerkUser?.primaryEmailAddress?.emailAddress || '',
     website: '',
     socialLinks: {
       github: '',
@@ -82,7 +85,7 @@ const Profile = () => {
       { name: 'Rising Star', icon: Star, color: 'bg-purple-100 text-purple-800' },
       { name: 'Community Leader', icon: Users, color: 'bg-blue-100 text-blue-800' }
     ]
-  }), [profileUserId]);
+  }), [profileUserId, clerkUser]);
 
   // Fetch profile data on component mount or when user ID changes
   const fetchProfileData = useCallback(async () => {
@@ -96,7 +99,7 @@ const Profile = () => {
 
       if (response.ok) {
         const data = await response.json();
-        // Map backend data to frontend format
+        // Map backend data to frontend format, preferring saved data over Clerk defaults
         setProfileData({
           ...defaultProfileData,
           id: data.user_id,
@@ -104,9 +107,9 @@ const Profile = () => {
           title: data.title || '',
           affiliation: data.affiliation || '',
           location: data.location || '',
-          avatar: data.avatar_url || null,
+          avatar: data.avatar_url || defaultProfileData.avatar,
           bio: data.bio || '',
-          email: data.email || '',
+          email: data.email || defaultProfileData.email,
           website: data.website || '',
           socialLinks: {
             github: data.github_url || '',
@@ -115,7 +118,7 @@ const Profile = () => {
           }
         });
       } else if (response.status === 404) {
-        // Profile not found, use default data
+        // Profile not found, use default data with Clerk info
         setProfileData(defaultProfileData);
       }
     } catch (error) {
@@ -381,19 +384,21 @@ const Profile = () => {
   );
 
   const StatCard = ({ label, value, icon: Icon, trend }) => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-100 dark:border-gray-700 group hover:scale-105">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+          <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{value}</p>
           {trend && (
-            <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+            <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1 mt-2">
               <TrendingUp className="w-3 h-3" />
               {trend}
             </p>
           )}
         </div>
-        <Icon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="p-3 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg group-hover:scale-110 transition-transform">
+          <Icon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        </div>
       </div>
     </div>
   );
@@ -449,14 +454,16 @@ const Profile = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 mb-8">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Avatar and Basic Info */}
-            <div className="flex flex-col items-center lg:items-start">
-              <div className="relative">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32"></div>
+          <div className="px-8 pb-8 -mt-16">
+            <div className="flex flex-col lg:flex-row gap-8">
+              {/* Avatar and Basic Info */}
+              <div className="flex flex-col items-center lg:items-start">
+                <div className="relative">
                 {isEditMode ? (
                   <>
                     <input
@@ -468,7 +475,7 @@ const Profile = () => {
                     />
                     <div 
                       onClick={() => fileInputRef.current?.click()}
-                      className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-gray-300 dark:border-gray-600 cursor-pointer group"
+                      className="relative w-40 h-40 rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-2xl cursor-pointer group"
                     >
                       {avatarPreview ? (
                         <img
@@ -478,7 +485,7 @@ const Profile = () => {
                         />
                       ) : profileData?.avatar ? (
                         <img
-                          src={`http://localhost:8000${profileData.avatar}`}
+                          src={profileData.avatar}
                           alt={profileData.name}
                           className="w-full h-full object-cover"
                         />
@@ -510,9 +517,9 @@ const Profile = () => {
                   <>
                     {profileData?.avatar ? (
                       <img
-                        src={`http://localhost:8000${profileData.avatar}`}
+                        src={profileData.avatar}
                         alt={profileData.name}
-                        className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
+                        className="w-40 h-40 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-2xl"
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.style.display = 'none';
@@ -520,12 +527,15 @@ const Profile = () => {
                       />
                     ) : null}
                     {!profileData?.avatar && (
-                      <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-white dark:border-gray-700 shadow-lg flex items-center justify-center">
-                        <User className="w-12 h-12 text-gray-400" />
+                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-4 border-white dark:border-gray-700 shadow-2xl flex items-center justify-center">
+                        <User className="w-16 h-16 text-white" />
                       </div>
                     )}
                     {isOwnProfile && (
-                      <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                      <button 
+                        onClick={handleEditClick}
+                        className="absolute bottom-2 right-2 p-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
                     )}
@@ -533,182 +543,238 @@ const Profile = () => {
                 )}
               </div>
               
-              <div className="mt-4 text-center lg:text-left">
+              <div className="mt-6 text-center lg:text-left">
                 {isEditMode ? (
-                  <>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData?.name || ''}
-                      onChange={handleInputChange}
-                      className="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
-                      placeholder="Your Name"
-                    />
-                    <input
-                      type="text"
-                      name="title"
-                      value={formData?.title || ''}
-                      onChange={handleInputChange}
-                      className="text-lg text-gray-600 dark:text-gray-400 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
-                      placeholder="Your Title"
-                    />
-                    <input
-                      type="text"
-                      name="affiliation"
-                      value={formData?.affiliation || ''}
-                      onChange={handleInputChange}
-                      className="text-gray-500 dark:text-gray-500 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none mb-2 w-full"
-                      placeholder="Your Affiliation"
-                    />
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData?.location || ''}
-                      onChange={handleInputChange}
-                      className="text-gray-500 dark:text-gray-500 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none w-full"
-                      placeholder="Your Location"
-                    />
-                  </>
+                  <div className="space-y-3">
+                    <div>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData?.name || ''}
+                        onChange={handleInputChange}
+                        className="text-3xl font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                        placeholder="Your Name"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        name="title"
+                        value={formData?.title || ''}
+                        onChange={handleInputChange}
+                        className="text-lg text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                        placeholder="Professional Title"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          name="affiliation"
+                          value={formData?.affiliation || ''}
+                          onChange={handleInputChange}
+                          className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="Organization"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          name="location"
+                          value={formData?.location || ''}
+                          onChange={handleInputChange}
+                          className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="Location"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{profileData.name}</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{profileData.title}</p>
-                    <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-2">
-                      <MapPin className="w-4 h-4" />
-                      {profileData.affiliation}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-500 flex items-center gap-1 mt-1">
-                      <Calendar className="w-4 h-4" />
-                      Joined {profileData.joinDate}
-                    </p>
+                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">{profileData.name}</h1>
+                    {profileData.title && (
+                      <p className="text-xl text-gray-600 dark:text-gray-400 mb-3">{profileData.title}</p>
+                    )}
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
+                      {profileData.affiliation && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {profileData.affiliation}
+                        </span>
+                      )}
+                      {profileData.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {profileData.location}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Joined {profileData.joinDate}
+                      </span>
+                    </div>
                   </>
                 )}
               </div>
             </div>
 
             {/* Bio and Links */}
-            <div className="flex-1">
+            <div className="flex-1 mt-8 lg:mt-0">
               {isEditMode ? (
-                <>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
-                  <textarea
-                    name="bio"
-                    value={formData?.bio || ''}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none mb-6"
-                    placeholder="Tell us about yourself..."
-                  />
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">About Me</label>
+                    <textarea
+                      name="bio"
+                      value={formData?.bio || ''}
+                      onChange={handleInputChange}
+                      rows={4}
+                      className="w-full px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+                      placeholder="Share your research interests, achievements, and what drives your work..."
+                    />
+                  </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData?.email || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
-                        placeholder="your.email@example.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website</label>
-                      <input
-                        type="url"
-                        name="website"
-                        value={formData?.website || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
-                        placeholder="https://yourwebsite.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">GitHub</label>
-                      <input
-                        type="url"
-                        name="github"
-                        value={formData?.github || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
-                        placeholder="https://github.com/username"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Twitter</label>
-                      <input
-                        type="url"
-                        name="twitter"
-                        value={formData?.twitter || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
-                        placeholder="https://twitter.com/username"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LinkedIn</label>
-                      <input
-                        type="url"
-                        name="linkedin"
-                        value={formData?.linkedin || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
-                        placeholder="https://linkedin.com/in/username"
-                      />
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Contact Information</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData?.email || ''}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-3 py-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="url"
+                          name="website"
+                          value={formData?.website || ''}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-3 py-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="https://yourwebsite.com"
+                        />
+                      </div>
                     </div>
                   </div>
-                </>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Social Media</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="relative">
+                        <Github className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="url"
+                          name="github"
+                          value={formData?.github || ''}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-3 py-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="GitHub profile"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Twitter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="url"
+                          name="twitter"
+                          value={formData?.twitter || ''}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-3 py-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="Twitter profile"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="url"
+                          name="linkedin"
+                          value={formData?.linkedin || ''}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-3 py-2 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                          placeholder="LinkedIn profile"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <p className="text-gray-700 dark:text-gray-300 mb-6">{profileData.bio}</p>
+                  {profileData.bio && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-3">About</h3>
+                      <p className="text-base lg:text-lg text-gray-900 dark:text-gray-100 leading-relaxed">{profileData.bio}</p>
+                    </div>
+                  )}
                   
                   {/* Contact Links */}
-                  <div className="flex flex-wrap gap-4 mb-6">
-                    <a href={`mailto:${profileData.email}`} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </a>
-                    <a href={profileData.website} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <LinkIcon className="w-4 h-4" />
-                      Website
-                    </a>
-                    <a href={profileData.socialLinks.github} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <Github className="w-4 h-4" />
-                      GitHub
-                    </a>
-                    <a href={profileData.socialLinks.twitter} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <Twitter className="w-4 h-4" />
-                      Twitter
-                    </a>
-                    <a href={profileData.socialLinks.linkedin} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <Linkedin className="w-4 h-4" />
-                      LinkedIn
-                    </a>
-                  </div>
+                  {(profileData.email || profileData.website || profileData.socialLinks.github || profileData.socialLinks.twitter || profileData.socialLinks.linkedin) && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Connect</h3>
+                      <div className="flex flex-wrap gap-3">
+                        {profileData.email && (
+                          <a href={`mailto:${profileData.email}`} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
+                            <Mail className="w-4 h-4" />
+                            <span className="text-sm">Email</span>
+                          </a>
+                        )}
+                        {profileData.website && (
+                          <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
+                            <LinkIcon className="w-4 h-4" />
+                            <span className="text-sm">Website</span>
+                          </a>
+                        )}
+                        {profileData.socialLinks.github && (
+                          <a href={profileData.socialLinks.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 hover:text-white transition-all">
+                            <Github className="w-4 h-4" />
+                            <span className="text-sm">GitHub</span>
+                          </a>
+                        )}
+                        {profileData.socialLinks.twitter && (
+                          <a href={profileData.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-blue-400 hover:text-white transition-all">
+                            <Twitter className="w-4 h-4" />
+                            <span className="text-sm">Twitter</span>
+                          </a>
+                        )}
+                        {profileData.socialLinks.linkedin && (
+                          <a href={profileData.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
+                            <Linkedin className="w-4 h-4" />
+                            <span className="text-sm">LinkedIn</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
               {/* Badges */}
-              {!isEditMode && (
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {profileData.badges.map((badge, index) => (
-                    <span key={index} className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>
-                      <badge.icon className="w-4 h-4" />
-                      {badge.name}
-                    </span>
-                  ))}
+              {!isEditMode && profileData.badges && profileData.badges.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Achievements</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.badges.map((badge, index) => (
+                      <span key={index} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${badge.color} shadow-sm`}>
+                        <badge.icon className="w-4 h-4" />
+                        {badge.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-8">
                 {isOwnProfile ? (
                   isEditMode ? (
                     <>
                       <button 
                         onClick={handleSave}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? (
                           <>
@@ -716,33 +782,33 @@ const Profile = () => {
                             Saving...
                           </>
                         ) : (
-                          'Save Changes'
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Save Changes
+                          </>
                         )}
                       </button>
                       <button 
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                         Cancel
                       </button>
                     </>
-                  ) : (
-                    <button 
-                      onClick={handleEditClick}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Edit Profile
-                    </button>
-                  )
+                  ) : null
                 ) : (
                   <>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl">
                       <User className="w-4 h-4" />
                       Follow
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <button className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-all shadow-md hover:shadow-lg">
                       <Mail className="w-4 h-4" />
                       Message
                     </button>
@@ -750,6 +816,7 @@ const Profile = () => {
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
 
