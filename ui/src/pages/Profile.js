@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import API_ENDPOINTS from '../config/api';
 import { 
   User, 
@@ -29,6 +29,7 @@ import {
 const Profile = () => {
   const { id } = useParams();
   const { getToken, userId: clerkUserId } = useAuth();
+  const { user: clerkUser } = useUser();
   const [activeTab, setActiveTab] = useState('papers');
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState(null);
@@ -52,17 +53,19 @@ const Profile = () => {
   // Or if the profile ID matches the current user ID
   const isOwnProfile = !id || id === 'me' || (profileUserId === clerkUserId) || (!clerkUserId && profileUserId === 'default-user');
   
-  // Default profile structure with stats and badges
+  // Default profile structure with stats and badges - use Clerk user data if available
   const defaultProfileData = useMemo(() => ({
     id: profileUserId,
-    name: 'New User',
+    name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || 'New User',
     title: '',
     affiliation: '',
     location: '',
-    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-    avatar: null,
+    joinDate: clerkUser?.createdAt 
+      ? new Date(clerkUser.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    avatar: clerkUser?.imageUrl || null,
     bio: '',
-    email: '',
+    email: clerkUser?.primaryEmailAddress?.emailAddress || '',
     website: '',
     socialLinks: {
       github: '',
@@ -82,7 +85,7 @@ const Profile = () => {
       { name: 'Rising Star', icon: Star, color: 'bg-purple-100 text-purple-800' },
       { name: 'Community Leader', icon: Users, color: 'bg-blue-100 text-blue-800' }
     ]
-  }), [profileUserId]);
+  }), [profileUserId, clerkUser]);
 
   // Fetch profile data on component mount or when user ID changes
   const fetchProfileData = useCallback(async () => {
@@ -96,7 +99,7 @@ const Profile = () => {
 
       if (response.ok) {
         const data = await response.json();
-        // Map backend data to frontend format
+        // Map backend data to frontend format, preferring saved data over Clerk defaults
         setProfileData({
           ...defaultProfileData,
           id: data.user_id,
@@ -104,9 +107,9 @@ const Profile = () => {
           title: data.title || '',
           affiliation: data.affiliation || '',
           location: data.location || '',
-          avatar: data.avatar_url || null,
+          avatar: data.avatar_url || defaultProfileData.avatar,
           bio: data.bio || '',
-          email: data.email || '',
+          email: data.email || defaultProfileData.email,
           website: data.website || '',
           socialLinks: {
             github: data.github_url || '',
@@ -115,7 +118,7 @@ const Profile = () => {
           }
         });
       } else if (response.status === 404) {
-        // Profile not found, use default data
+        // Profile not found, use default data with Clerk info
         setProfileData(defaultProfileData);
       }
     } catch (error) {
